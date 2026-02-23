@@ -5,6 +5,7 @@ import {
   FaUsers, FaEnvelope, FaLock, FaInfoCircle, 
   FaShieldAlt, FaArrowRight 
 } from "react-icons/fa";
+import { toast } from "react-toastify";
 import api from "../services/api"; 
 
 const Login = () => {
@@ -31,7 +32,7 @@ const Login = () => {
       const userRole = rawRole ? rawRole.toLowerCase().trim() : null;
 
       if (!userRole) {
-        alert("Login Successful, but no Role assigned to this account.");
+        toast.error("Login Successful, but no Role assigned to this account.");
         setIsSubmitting(false);
         return;
       }
@@ -50,14 +51,14 @@ const Login = () => {
         } else if (userRole === 'student') {
           navigate("/dashboard");
         } else {
-          alert(`Access Denied: Unrecognized role "${rawRole}"`);
+          toast.error(`Access Denied: Unrecognized role "${rawRole}"`);
         }
       }, 100);
 
     } catch (error) {
       // Handles the 'user.matchPassword is not a function' or 'Invalid credentials'
       const errorMsg = error.response?.data?.message || "Login Failed: Server Connection Error";
-      alert(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }

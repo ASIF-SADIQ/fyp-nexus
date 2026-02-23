@@ -4,6 +4,7 @@ import {
   FaUserCircle, FaGithub, FaUserEdit, FaSave, FaArrowLeft, 
   FaEnvelope, FaCode, FaBuilding, FaLayerGroup 
 } from "react-icons/fa";
+import { toast } from "react-toastify";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -80,12 +81,12 @@ const Profile = () => {
         const updatedUser = { ...userInfo, name: data.name, department: data.department };
         localStorage.setItem("userInfo", JSON.stringify(updatedUser));
         setUserInfo(updatedUser);
-        alert("Profile Updated Successfully!");
+        toast.success("Profile Updated Successfully!");
       } else {
-        alert("Update Failed: " + (data.message || "Unknown error"));
+        toast.error("Update Failed: " + (data.message || "Unknown error"));
       }
     } catch (error) {
-      alert("Server Error");
+      toast.error("Server Error");
     } finally {
       setLoading(false);
     }

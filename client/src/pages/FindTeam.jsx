@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSearch, FaArrowLeft, FaPaperPlane, FaUserAstronaut, FaCode, FaEnvelope, FaUsers } from "react-icons/fa";
 import { motion } from "framer-motion";
+import { toast } from "react-toastify";
 
 const FindTeam = () => {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ const FindTeam = () => {
       });
 
       if (response.status === 401) {
-        alert("Session expired. Please login again.");
+        toast.error("Session expired. Please login again.");
         localStorage.removeItem("userInfo");
         navigate("/");
         return;
@@ -62,9 +63,9 @@ const FindTeam = () => {
       });
 
       if (response.ok) {
-        alert(`Invite sent to ${userName}!`);
+        toast.success(`Invite sent to ${userName}!`);
       } else {
-        alert("Failed to send invite.");
+        toast.error("Failed to send invite.");
       }
     } catch (error) {
       console.error(error);

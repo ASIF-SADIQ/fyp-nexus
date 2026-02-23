@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { FaMapMarkedAlt, FaCalendarAlt, FaCheckCircle, FaArrowLeft, FaLayerGroup } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const Roadmap = () => {
   const navigate = useNavigate();
@@ -33,10 +34,10 @@ const Roadmap = () => {
       if (response.ok) {
          setRoadmap(data);
       } else {
-         alert("Generation Failed: " + (data.message || "Unknown Error"));
+         toast.error("Generation Failed: " + (data.message || "Unknown Error"));
       }
     } catch (error) {
-      alert("Server Error. Ensure backend is running.");
+      toast.error("Server Error. Ensure backend is running.");
     } finally {
       setLoading(false);
     }

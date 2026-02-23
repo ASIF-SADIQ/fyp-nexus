@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { FaTimes, FaEnvelope, FaBrain, FaListOl, FaLock, FaUniversity, FaCalendarAlt, FaIdCard } from "react-icons/fa";
+import { toast } from "react-toastify";
 import api from "../services/api"; 
 
 const AddUserModal = ({ isOpen, onClose, refreshData, roleType }) => {
@@ -82,11 +83,11 @@ const AddUserModal = ({ isOpen, onClose, refreshData, roleType }) => {
       // ✅ Matches your adminRoutes.js: router.post('/add-user'...)
       await api.post("/admin/add-user", payload); 
       
-      alert(`${finalRole.toUpperCase()} registered successfully!`);
+      toast.success(`${finalRole.toUpperCase()} registered successfully!`);
       await refreshData(); 
       onClose();
     } catch (err) {
-      alert(err.response?.data?.message || "Registration failed. Email or ID likely exists.");
+      toast.error(err.response?.data?.message || "Registration failed. Email or ID likely exists.");
     } finally {
       setIsSubmitting(false);
     }

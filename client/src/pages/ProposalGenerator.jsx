@@ -5,6 +5,7 @@ import {
 } from "react-icons/fa";
 import jsPDF from "jspdf";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const ProposalGenerator = () => {
   const navigate = useNavigate();
@@ -34,10 +35,10 @@ const ProposalGenerator = () => {
       if (response.ok) {
         setGeneratedProposal(data.proposal);
       } else {
-        alert("AI Generation Failed: " + (data.message || "Unknown Error"));
+        toast.error("AI Generation Failed: " + (data.message || "Unknown Error"));
       }
     } catch (error) {
-      alert("Server Error. Make sure the backend is running.");
+      toast.error("Server Error. Make sure the backend is running.");
     } finally {
       setLoading(false);
     }

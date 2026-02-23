@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FaTimes, FaSave, FaUniversity, FaCalendarAlt, FaBrain, FaListOl, FaIdCard } from "react-icons/fa";
+import { toast } from "react-toastify";
 import api from "../services/api";
 
 const EditUserModal = ({ isOpen, onClose, refreshData, user }) => {
@@ -56,13 +57,13 @@ const EditUserModal = ({ isOpen, onClose, refreshData, user }) => {
       // ✅ Use the route we just fixed in adminRoutes.js
       await api.put(`/admin/${user._id}`, submissionData); 
       
-      alert(`Success: ${user.role.toUpperCase()} profile updated.`);
+      toast.success(`${user.role.toUpperCase()} profile updated.`);
       await refreshData();
       onClose();
     } catch (err) {
       // ✅ Improved error reporting from our new errorHandler middleware
       const errorMsg = err.response?.data?.message || "Database synchronization failed.";
-      alert(`Error: ${errorMsg}`);
+      toast.error(`Error: ${errorMsg}`);
     } finally {
       setIsSubmitting(false);
     }

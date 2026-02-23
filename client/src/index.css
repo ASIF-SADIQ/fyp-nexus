@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #F3F4F6;
+  color: #1E293B;
+}
+
+/* Yellow Glow for the Next Milestone (> 48h) */
+.border-next-up {
+  border: 3px solid #facc15 !important; /* yellow-400 */
+  box-shadow: 0 0 15px rgba(250, 204, 21, 0.3);
+}
+
+/* Red Blinking for Critical Milestone (<= 48h) */
+@keyframes critical-pulse {
+  0% { border-color: #ef4444; box-shadow: 0 0 0 0px rgba(239, 68, 68, 0.5); }
+  50% { border-color: #fca5a5; box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+  100% { border-color: #ef4444; box-shadow: 0 0 0 0px rgba(239, 68, 68, 0); }
+}
+
+.border-critical-blink {
+  animation: critical-pulse 1.5s infinite;
+  border-width: 3px !important;
+}
+

@@ -19,24 +19,9 @@ const app = express();
 // --- 1. SECURITY & MIDDLEWARE ---
 app.use(helmet()); 
 
-// ✅ UPDATED: Added your specific Vercel URL to the whitelist
-const allowedOrigins = [
-  'http://localhost:5173', 
-  'https://fyp-teamup-frontend.vercel.app',
-  'https://fyp-nexus-portal.vercel.app',
-  'https://fyp-nexus-kcbzi5ovt-asif-sadiqs-projects.vercel.app' 
-];
-
+// ✅ EMERGENCY FIX: This allows any origin to connect, fixing the CORS error
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl) 
-    // or if the origin is in the allowed list
-    if (!origin || allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS Policy: Access denied for this origin.'));
-    }
-  },
+  origin: true, 
   credentials: true
 }));
 
@@ -68,7 +53,7 @@ app.get('/', (req, res) => {
   res.json({ 
     message: 'FYP Nexus API is Running 🚀', 
     status: 'Stable',
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'production'
   });
 });
 

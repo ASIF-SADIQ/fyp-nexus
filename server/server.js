@@ -1,21 +1,14 @@
-
 const dns = require('node:dns');
 dns.setDefaultResultOrder('ipv4first'); // Forces Node to use stable IPv4
 require('dotenv').config(); // ✅ CRITICAL: This MUST be Line 1
-console.log("ENV TEST:", process.env.CLOUDINARY_NAME);
 
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet'); 
 const notificationRoutes = require('./routes/notificationRoutes');
-
-// ✅ NEW: Import Deadline Routes
 const deadlineRoutes = require('./routes/deadlineRoutes'); 
-
-// --- Import Custom Error Middleware ---
 const { errorHandler } = require('./middleware/errorMiddleware');
-
 const userRoutes = require('./routes/userRoutes'); 
 const projectRoutes = require('./routes/projectRoutes'); 
 const aiRoutes = require('./routes/aiRoutes');
@@ -26,15 +19,19 @@ const app = express();
 // --- 1. SECURITY & MIDDLEWARE ---
 app.use(helmet()); 
 
+// ✅ UPDATED: Added your specific Vercel URL to the whitelist
 const allowedOrigins = [
   'http://localhost:5173', 
   'https://fyp-teamup-frontend.vercel.app',
-  'https://fyp-nexus-portal.vercel.app'
+  'https://fyp-nexus-portal.vercel.app',
+  'https://fyp-nexus-kcbzi5ovt-asif-sadiqs-projects.vercel.app' 
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    // Allow requests with no origin (like mobile apps or curl) 
+    // or if the origin is in the allowed list
+    if (!origin || allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else {
       callback(new Error('CORS Policy: Access denied for this origin.'));
@@ -65,8 +62,6 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
-
-// ✅ NEW: Register Deadline Routes (This fixes the 404 error)
 app.use('/api/deadlines', deadlineRoutes); 
 
 app.get('/', (req, res) => {
@@ -78,12 +73,9 @@ app.get('/', (req, res) => {
 });
 
 // --- 4. GLOBAL ERROR HANDLER ---
-// Catch any errors from asyncHandler or routes
 app.use((err, req, res, next) => {
   console.error(err.stack);
-
   const statusCode = res.statusCode && res.statusCode !== 200 ? res.statusCode : 500;
-
   res.status(statusCode).json({
     message: err.message || 'Server Error',
     stack: process.env.NODE_ENV === 'production' ? null : err.stack
@@ -92,14 +84,12 @@ app.use((err, req, res, next) => {
 
 // --- 5. SERVER START ---
 const PORT = process.env.PORT || 5000;
-connectDB(); // ✅ CRITICAL: Connect to database before starting server
+
 app.listen(PORT, () => {
   console.log(`🚀 Server active on port ${PORT}`);
   if (!process.env.CLOUDINARY_NAME) {
-    console.error("⚠️ WARNING: Cloudinary variables are NOT loaded. Check your .env file.");
+    console.error("⚠️ WARNING: Cloudinary variables are NOT loaded.");
   }
 });
-
-console.log("everything is working fine");
 
 module.exports = app;

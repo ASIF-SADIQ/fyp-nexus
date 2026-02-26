@@ -21,14 +21,14 @@ const StudentSidebar = ({ activeTab, setActiveTab, project }) => {
   };
 
   return (
-    <aside className="w-72 bg-white border-r border-slate-100 hidden lg:flex flex-col p-8 shadow-sm z-20">
+    <aside className="w-72 bg-white border-r border-neutral-100 hidden lg:flex flex-col p-8 shadow-sm z-20">
       {/* Brand Header */}
       <div className="flex items-center gap-3 mb-12 px-2">
-        <div className="bg-slate-900 p-2.5 rounded-2xl text-white shadow-xl">
+        <div className="bg-neutral-900 p-2.5 rounded-2xl text-white shadow-xl">
           <FaUserCircle size={20} />
         </div>
-        <span className="text-2xl font-black text-slate-900 italic">
-          NEXUS<span className="text-blue-600">.</span>
+        <span className="text-2xl font-black text-neutral-900 italic">
+          NEXUS<span className="text-primary-600">.</span>
         </span>
       </div>
 
@@ -48,7 +48,7 @@ const StudentSidebar = ({ activeTab, setActiveTab, project }) => {
           onClick={() => setActiveTab('proposal')} 
         />
 
-        {/* ✅ NEW: AI ROADMAP LINK */}
+        {/* NEW: AI ROADMAP LINK */}
         <SidebarLink 
           icon={<FaMagic />} 
           label="Roadmap" 
@@ -93,17 +93,17 @@ const StudentSidebar = ({ activeTab, setActiveTab, project }) => {
       </nav>
 
       {/* Footer / Logout */}
-      <div className="mt-auto pt-8 border-t border-slate-50">
+      <div className="mt-auto pt-8 border-t border-neutral-50">
         {project && (
-          <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Active Project</p>
-            <p className="text-xs font-black text-slate-800 truncate">{project.title}</p>
+          <div className="mb-6 p-4 bg-neutral-50 rounded-2xl border border-neutral-100">
+            <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-1">Active Project</p>
+            <p className="text-xs font-black text-neutral-800 truncate">{project.title}</p>
           </div>
         )}
         
         <button 
           onClick={handleLogout} 
-          className="flex items-center gap-3 px-4 text-slate-400 font-black text-[11px] uppercase tracking-widest hover:text-rose-500 transition-colors w-full group"
+          className="flex items-center gap-3 px-4 text-neutral-400 font-black text-xs uppercase tracking-widest hover:text-error-500 transition-colors w-full group"
         >
           <FaSignOutAlt className="group-hover:-translate-x-1 transition-transform" /> 
           Sign Out
@@ -116,13 +116,13 @@ const StudentSidebar = ({ activeTab, setActiveTab, project }) => {
 const SidebarLink = ({ icon, label, active, onClick }) => (
   <div 
     onClick={onClick} 
-    className={`flex items-center gap-4 px-6 py-4 rounded-[1.5rem] font-black text-[11px] uppercase tracking-widest transition-all cursor-pointer ${
+    className={`flex items-center gap-4 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all cursor-pointer ${
       active 
-        ? 'bg-slate-900 text-white shadow-xl shadow-slate-200 scale-105' 
-        : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
+        ? 'bg-neutral-900 text-white shadow-xl shadow-neutral-200 scale-105' 
+        : 'text-neutral-400 hover:bg-neutral-50 hover:text-neutral-600'
     }`}
   >
-    <span className={`text-lg transition-colors ${active ? 'text-blue-400' : ''}`}>{icon}</span>
+    <span className={`text-lg transition-colors ${active ? 'text-primary-400' : ''}`}>{icon}</span>
     <span>{label}</span>
   </div>
 );

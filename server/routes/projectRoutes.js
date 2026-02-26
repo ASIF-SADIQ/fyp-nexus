@@ -22,7 +22,10 @@ const {
   addTask,
   claimTask,
   updateTaskStatus,
-  addTaskFeedback // This is imported directly
+  addTaskFeedback,
+  gradeProject, 
+  submitForReview, 
+  requestRevision 
 } = require('../controllers/projectController');
 
 // -------------------------------
@@ -59,7 +62,6 @@ const upload = multer({
 // -------------------------------
 // 🌟 TASK FEEDBACK (MUST BE AT THE TOP)
 // -------------------------------
-// Fixed: Using 'addTaskFeedback' directly because it was imported as such
 router.patch('/:id/tasks/:taskId/feedback', protect, addTaskFeedback);
 
 // -------------------------------
@@ -87,6 +89,11 @@ router.put('/:id/respond-request', protect, respondToRequest);
 // -------------------------------
 router.post('/:id/submit', protect, upload.single('file'), submitDeliverable);
 router.put('/:id/grade', protect, gradeSubmission);
+
+// ✅ NEW FINAL REVIEW & GRADING ROUTES
+router.put('/:id/grade-project', protect, gradeProject); 
+router.put('/:id/submit-for-review', protect, submitForReview); 
+router.put('/:id/request-revision', protect, requestRevision); 
 
 // -------------------------------
 // 📋 TASK MANAGEMENT

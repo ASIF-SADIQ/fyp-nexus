@@ -97,18 +97,18 @@ const StudentDashboard = () => {
   };
 
   if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-[#F4F7FE]">
+    <div className="h-screen flex items-center justify-center bg-neutral-50">
       <div className="flex flex-col items-center gap-4">
         <div className="text-blue-600 font-black animate-bounce tracking-tighter text-3xl">
-          NEXUS<span className="text-slate-800">.</span>
+          NEXUS<span className="text-neutral-900">.</span>
         </div>
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Loading Workspace...</p>
+        <p className="text-xs font-black text-neutral-400 uppercase tracking-widest">Loading Workspace...</p>
       </div>
     </div>
   );
 
   return (
-    <div className="flex h-screen bg-[#F4F7FE] font-sans overflow-hidden">
+    <div className="flex h-screen bg-neutral-50 font-sans overflow-hidden">
       
       {/* SIDEBAR */}
       <StudentSidebar 
@@ -121,18 +121,18 @@ const StudentDashboard = () => {
         {/* HEADER */}
         <header className="flex justify-between items-center mb-10">
           <div className="flex flex-col">
-              <h2 className="text-2xl font-black text-slate-900 capitalize tracking-tight">
+              <h2 className="text-2xl font-black text-neutral-900 capitalize tracking-tight">
                 {activeTab === "supervisor" ? "Mentor Selection" : activeTab.replace("-", " ")}
               </h2>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+              <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mt-1">
                 Student Portal • {userInfo?.batch || '2026'}
               </p>
           </div>
-          <div className="bg-white px-5 py-2.5 rounded-2xl shadow-sm border border-gray-100 font-bold text-xs flex items-center gap-3">
+          <div className="bg-white px-5 py-2.5 rounded-2xl shadow-sm border border-neutral-100 font-bold text-xs flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black shadow-lg shadow-blue-100">
                 {userInfo?.name?.[0]}
             </div>
-            <span className="text-slate-700 hidden sm:block">{userInfo?.name}</span>
+            <span className="text-neutral-700 hidden sm:block">{userInfo?.name}</span>
           </div>
         </header>
 
@@ -142,15 +142,15 @@ const StudentDashboard = () => {
           {activeTab === "overview" && (
             <div className="space-y-10">
               {!project ? (
-                <div className="flex flex-col items-center justify-center h-[50vh] bg-white rounded-[3rem] border-2 border-dashed border-gray-100 p-10 text-center">
-                  <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
-                    <FaProjectDiagram size={30} className="text-slate-200" />
+                <div className="flex flex-col items-center justify-center h-[50vh] bg-white rounded-3xl border-2 border-dashed border-neutral-100 p-10 text-center">
+                  <div className="w-20 h-20 bg-neutral-50 rounded-full flex items-center justify-center mb-6">
+                    <FaProjectDiagram size={30} className="text-neutral-300" />
                   </div>
-                  <h3 className="text-2xl font-black text-slate-800">Initiate Your Journey</h3>
-                  <p className="text-gray-400 mb-8 max-w-sm text-sm">No active project found. Submit your proposal to begin the FYP process.</p>
+                  <h3 className="text-2xl font-black text-neutral-800">Initiate Your Journey</h3>
+                  <p className="text-neutral-400 mb-8 max-w-sm text-sm">No active project found. Submit your proposal to begin FYP process.</p>
                   <button 
                     onClick={() => setActiveTab("proposal")}
-                    className="bg-slate-900 text-white px-10 py-5 rounded-[2rem] font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl hover:bg-blue-600 transition-all active:scale-95"
+                    className="bg-neutral-900 text-white px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl hover:bg-blue-600 transition-all active:scale-95"
                   >
                     Create New Proposal
                   </button>
@@ -162,28 +162,15 @@ const StudentDashboard = () => {
                     deadlines={deadlines} 
                     onOpenDeepDive={handleOpenDeepDive} 
                   />
-                  
-                  {nextMilestone && (
-                    <section className="space-y-4 max-w-4xl">
-                       <div className="flex justify-between items-center px-4">
-                          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Next Major Goal</h3>
-                          <button onClick={() => setActiveTab('deadlines')} className="text-blue-600 text-[10px] font-black uppercase flex items-center gap-1 hover:gap-2 transition-all">
-                             Full Roadmap <FaChevronRight />
-                          </button>
-                       </div>
-                       <DeadlineCard 
-                         deadlines={[nextMilestone]} 
-                         project={project}
-                         onRefresh={handleRefresh}
-                       />
-                    </section>
-                  )}
+
+                  {/* ✅ THE DUPLICATE DEADLINE CARD WAS REMOVED FROM HERE */}
 
                   <OverviewTab 
                      project={project} 
                      deadlines={deadlines} 
                      notifications={notifications} 
-                     setActiveTab={setActiveTab} 
+                     onRefresh={handleRefresh} 
+                     setActiveTab={setActiveTab} // ✅ PASSING THE PROP HERE!
                   />
                 </>
               )}
@@ -193,10 +180,10 @@ const StudentDashboard = () => {
           {/* --- 2. DEADLINES TAB --- */}
           {activeTab === "deadlines" && (
             <div className="space-y-8 max-w-5xl">
-               <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white flex justify-between items-center relative overflow-hidden">
+               <div className="bg-neutral-900 p-8 rounded-3xl text-white flex justify-between items-center relative overflow-hidden">
                  <div className="relative z-10">
                     <h3 className="text-2xl font-black tracking-tight">Academic Roadmap</h3>
-                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+                    <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest mt-1">
                       {deadlines?.length || 0} Milestones Synchronized
                     </p>
                  </div>
@@ -213,7 +200,7 @@ const StudentDashboard = () => {
                       <div 
                         key={deadline._id}
                         className={`p-8 rounded-[2.5rem] bg-white border transition-all relative
-                          ${isNext ? 'border-next-up' : 'border-slate-50 shadow-sm'}
+                          ${isNext ? 'border-blue-400 shadow-md' : 'border-slate-50 shadow-sm'}
                           ${(isExpired || isSubmitted) ? 'opacity-50 grayscale' : 'hover:shadow-xl'}
                         `}
                       >
@@ -282,23 +269,14 @@ const StudentDashboard = () => {
             <NotificationsTab />
           )}
 
-          {/* --- PROPOSAL TAB --- */}
+          {/* --- ✅ PROPOSAL TAB FIXED HERE --- */}
           {activeTab === "proposal" && (
             <div>
-              {project && ["Approved", "Ongoing", "Completed"].includes(project.status) ? (
-                <div className="bg-white p-12 rounded-[2.5rem] text-center border border-amber-100 shadow-sm max-w-2xl mx-auto mt-10">
-                  <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <FaClock size={24} />
-                  </div>
-                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Active Project Found</h3>
-                  <p className="text-slate-400 text-xs mt-2">You already have an ongoing project. Use the Roadmap tab to plan tasks.</p>
-                  <button onClick={() => setActiveTab("roadmap")} className="mt-8 bg-slate-900 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 transition-all flex items-center gap-2 mx-auto">
-                    <FaMagic /> Go to AI Roadmap
-                  </button>
-                </div>
-              ) : (
-                <ProposalTab fetchData={handleRefresh} />
-              )}
+              <ProposalTab 
+                fetchData={handleRefresh} 
+                project={project} 
+                setActiveTab={setActiveTab} 
+              />
             </div>
           )}
 

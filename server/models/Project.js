@@ -14,7 +14,7 @@ const taskSchema = new mongoose.Schema({
   }, 
   status: { 
     type: String, 
-    enum: ['To Do', 'In Progress', 'Done'], 
+    enum: ['To Do', 'In Progress', 'Pending Evaluation', 'Done'], 
     default: 'To Do' 
   },
   priority: { 
@@ -100,7 +100,7 @@ const projectSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ['Pending', 'Approved', 'Rejected', 'Ongoing', 'Completed'],
+      enum: ['Pending', 'Approved', 'Rejected', 'Completed', 'Ongoing', 'In Progress', 'Pending Evaluation', 'Under Review', 'Revision Requested'],
       default: 'Pending'
     },
 
@@ -117,27 +117,34 @@ const projectSchema = new mongoose.Schema(
     ],
 
     // --- 🚀 DYNAMIC DELIVERABLES & SUBMISSIONS ---
-    submissions: [
-      {
-        deadlineId: { 
-          type: mongoose.Schema.Types.ObjectId, 
-          ref: 'Deadline',
-          required: true 
+    submissions: [{
+        deadlineId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Deadline',
+            // 👇 1. CHANGE THIS FROM TRUE TO FALSE
+            required: false 
         },
-        title: { type: String, required: true }, 
-        fileUrl: { type: String, required: true },
-        status: { 
-          type: String, 
-          enum: ['Pending', 'Submitted', 'Late', 'Approved', 'Revision'], 
-          default: 'Submitted' 
+        title: {
+            type: String,
+            required: true
         },
-        feedback: { type: String, default: "" },
-        marks: { type: Number, default: null },
-        gradedAt: { type: Date },
-        submittedAt: { type: Date, default: Date.now }
-      }
-    ],
-
+        fileUrl: {
+            type: String,
+            required: true
+        },
+        submittedAt: {
+            type: Date,
+            default: Date.now
+        },
+        status: {
+            type: String,
+            // 👇 2. ADD 'Resource' TO THIS ARRAY
+            enum: ['Pending', 'Submitted', 'Late', 'Approved', 'Rejected', 'Resource'], 
+            default: 'Submitted'
+        },
+        marks: Number,
+        feedback: String
+    }],
     // --- 🚀 AI & ROADMAP MANAGEMENT ---
     
     // Stores the AI-generated timeline phases
@@ -177,6 +184,14 @@ const projectSchema = new mongoose.Schema(
     adminFeedback: {
       type: String,
       default: ""
+    },
+
+    // --- 🎯 PROJECT GRADING ---
+    grade: {
+      score: { type: Number },
+      feedback: { type: String },
+      gradedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      gradedAt: { type: Date, default: Date.now }
     }
   },
   {

@@ -7,7 +7,6 @@ const Notification = require('../models/Notification');
 
 /**
  * ✅ HELPER FUNCTION: RECALCULATE MEMBER PROGRESS
- * Updates percentage bars for each member based on assigned tasks.
  */
 const syncProjectProgress = async (project) => {
     const allStudentIds = [...new Set([
@@ -31,7 +30,6 @@ const syncProjectProgress = async (project) => {
 
 /**
  * ✅ HELPER FUNCTION: DYNAMIC CAPACITY CHECK
- * Fixes the "undefined is at maximum capacity" error.
  */
 const checkSupervisorCapacity = async (supervisorId) => {
     const supervisor = await User.findById(supervisorId);
@@ -62,7 +60,6 @@ const checkSupervisorCapacity = async (supervisorId) => {
  * ==========================================
  */
 
-// @desc    Get all projects (Admin/General)
 const getProjects = asyncHandler(async (req, res) => {
     const { department, status } = req.query;
     let query = {};
@@ -79,7 +76,6 @@ const getProjects = asyncHandler(async (req, res) => {
     res.json(projects);
 });
 
-// @desc    Get Student's Own Projects
 const getMyProjects = asyncHandler(async (req, res) => {
     const projects = await Project.find({ $or: [{ leader: req.user._id }, { members: req.user._id }] })
     .populate('members leader', 'name email rollNo profilePicture')
@@ -88,7 +84,6 @@ const getMyProjects = asyncHandler(async (req, res) => {
     res.json(projects);
 });
 
-// @desc    Get specific project by ID
 const getProjectById = asyncHandler(async (req, res) => {
     const project = await Project.findById(req.params.id)
         .populate('leader members', 'name email rollNo profilePicture department')
@@ -102,7 +97,6 @@ const getProjectById = asyncHandler(async (req, res) => {
     res.json(project);
 });
 
-// @desc    Create a new project (Student Proposal)
 const createProject = asyncHandler(async (req, res) => {
     const { title, description, technologies, domain, teammateRollNumbers } = req.body;
 
@@ -145,6 +139,21 @@ const createProject = asyncHandler(async (req, res) => {
     leaderUser.isLeader = true;
     await leaderUser.save();
 
+    // ✅ NOTIFY ADMINS: When a student submits a proposal
+    const admins = await User.find({ role: 'admin' }); 
+    if (admins.length > 0) {
+        const adminNotifications = admins.map(admin => ({
+            recipient: admin._id,
+            sender: leaderUser._id,
+            title: 'New Project Proposal',
+            message: `${leaderUser.name} submitted a new project proposal: "${project.title}".`,
+            type: 'System', 
+            link: `/projects/${project._id}`, 
+            relatedId: project._id
+        }));
+        await Notification.insertMany(adminNotifications);
+    }
+
     res.status(201).json(project);
 });
 
@@ -154,12 +163,13 @@ const createProject = asyncHandler(async (req, res) => {
  * ==========================================
  */
 
-// @desc    Admin: Update Status or Assign Supervisor
 const updateProjectStatus = asyncHandler(async (req, res) => {
     const { status, adminFeedback, supervisorId } = req.body;
     const project = await Project.findById(req.params.id);
 
     if (!project) { res.status(404); throw new Error('Project not found'); }
+
+    const previousStatus = project.status; 
 
     if (supervisorId) {
         const capacity = await checkSupervisorCapacity(supervisorId);
@@ -174,10 +184,44 @@ const updateProjectStatus = asyncHandler(async (req, res) => {
     if (status) project.status = status;
     if (adminFeedback) project.adminFeedback = adminFeedback;
     await project.save();
+
+    // ✅ NOTIFY STUDENTS: When admin approves/rejects proposal
+    if (status && status !== previousStatus) {
+        let notifTitle = 'Project Status Updated';
+        let notifType = 'System';
+        let notifMessage = `Your project "${project.title}" status changed to ${status}.`;
+
+        if (status === 'Approved') {
+            notifTitle = 'Proposal Approved!';
+            notifType = 'Approval';
+            notifMessage = `Great news! Your project proposal "${project.title}" has been approved.`;
+        } else if (status === 'Rejected') {
+            notifTitle = 'Proposal Rejected';
+            notifType = 'Rejection';
+            notifMessage = `Your project proposal "${project.title}" was rejected. Feedback: ${adminFeedback || 'None'}`;
+        }
+
+        const teamMembers = [project.leader, ...(project.members || [])].filter(Boolean);
+        
+        if (teamMembers.length > 0) {
+            const notificationPromises = teamMembers.map(memberId => 
+                Notification.create({
+                    recipient: memberId,
+                    sender: req.user._id, 
+                    title: notifTitle,
+                    message: notifMessage,
+                    type: notifType,
+                    link: `/projects/${project._id}`, 
+                    relatedId: project._id
+                })
+            );
+            await Promise.all(notificationPromises);
+        }
+    }
+
     res.json(project);
 });
 
-// @desc    Student Request Supervisor
 const requestSupervisor = asyncHandler(async (req, res) => {
     const { teacherId } = req.body;
     const project = await Project.findById(req.params.id);
@@ -185,18 +229,29 @@ const requestSupervisor = asyncHandler(async (req, res) => {
     if (!project) { res.status(404); throw new Error('Project not found'); }
     if (!teacherId) { res.status(400); throw new Error('Please select a supervisor'); }
 
+    // Optional: Prevent sending duplicate requests to the same teacher
+    const alreadyRequested = project.supervisionRequests.some(
+        (req) => req.teacherId.toString() === teacherId && req.requestStatus === 'Sent'
+    );
+    if (alreadyRequested) {
+        res.status(400); throw new Error('You have already sent a request to this teacher.');
+    }
+
     const capacity = await checkSupervisorCapacity(teacherId);
     if (capacity.isFull) {
         res.status(400);
         throw new Error(`${capacity.name} is at maximum project capacity.`);
     }
     
+    // ✅ 1. Only push to the requests array. 
     project.supervisionRequests.push({ teacherId, requestStatus: 'Sent', requestDate: Date.now() });
-    project.supervisor = teacherId;
-    project.supervisorStatus = 'Pending';
+    
+    // ✅ 2. REMOVED: project.supervisor = teacherId; <-- This was causing the block!
+    // ✅ 3. REMOVED: project.supervisorStatus = 'Pending'; <-- This too!
     
     await project.save();
 
+    // ✅ NOTIFY SUPERVISOR: When student requests them
     await Notification.create({
         recipient: teacherId,
         sender: req.user._id,
@@ -210,7 +265,6 @@ const requestSupervisor = asyncHandler(async (req, res) => {
     res.json({ message: `Request sent to ${capacity.name} successfully`, project });
 });
 
-// @desc    Teacher Respond to Request
 const respondToRequest = asyncHandler(async (req, res) => {
     const { action } = req.body; 
     const project = await Project.findById(req.params.id);
@@ -222,19 +276,46 @@ const respondToRequest = asyncHandler(async (req, res) => {
 
     if (requestIndex === -1) { res.status(401); throw new Error('No pending request.'); }
 
+    let notifTitle = '';
+    let notifMessage = '';
+    let notifType = '';
+
     if (action === 'Accept') {
         project.supervisor = req.user._id;
         project.supervisorStatus = 'Approved';
         project.status = 'Ongoing';
         project.supervisionRequests[requestIndex].requestStatus = 'Accepted';
         await User.findByIdAndUpdate(req.user._id, { $inc: { currentProjectsCount: 1 } });
+        
+        notifTitle = 'Supervision Request Accepted';
+        notifMessage = `A supervisor has accepted your request for "${project.title}".`;
+        notifType = 'Approval';
     } else {
         project.supervisionRequests[requestIndex].requestStatus = 'Rejected';
         project.supervisor = null;
         project.supervisorStatus = 'Rejected';
+        
+        notifTitle = 'Supervision Request Rejected';
+        notifMessage = `Your supervision request for "${project.title}" was declined.`;
+        notifType = 'Rejection';
     }
 
     await project.save();
+
+    // ✅ NOTIFY STUDENTS: When Supervisor accepts/rejects the request
+    const teamMembers = [project.leader, ...(project.members || [])].filter(Boolean);
+    const notificationPromises = teamMembers.map(memberId => 
+        Notification.create({
+            recipient: memberId,
+            sender: req.user._id,
+            title: notifTitle,
+            message: notifMessage,
+            type: notifType,
+            link: `/projects/${project._id}`
+        })
+    );
+    await Promise.all(notificationPromises);
+
     res.json({ message: `Success: ${action}`, project });
 });
 
@@ -244,7 +325,6 @@ const respondToRequest = asyncHandler(async (req, res) => {
  * ==========================================
  */
 
-// @desc    Add Task
 const addTask = asyncHandler(async (req, res) => {
     const { title, assignedTo, priority, dueDate } = req.body;
     const project = await Project.findById(req.params.id);
@@ -258,7 +338,6 @@ const addTask = asyncHandler(async (req, res) => {
     res.json(project);
 });
 
-// @desc    Claim Task (Critical for AI Roadmap)
 const claimTask = asyncHandler(async (req, res) => {
     const project = await Project.findById(req.params.id);
     if (!project) { res.status(404); throw new Error('Project not found'); }
@@ -278,7 +357,6 @@ const claimTask = asyncHandler(async (req, res) => {
     res.json(project);
 });
 
-// @desc    Update Task Status
 const updateTaskStatus = asyncHandler(async (req, res) => {
     const { status } = req.body;
     const project = await Project.findById(req.params.id);
@@ -294,14 +372,6 @@ const updateTaskStatus = asyncHandler(async (req, res) => {
     res.json(project);
 });
 
-// ✅ NEW FUNCTION: Add supervisor feedback to a task
-// @desc    Add supervisor feedback to a task
-// @route   PATCH /api/projects/:id/tasks/:taskId/feedback
-// @access  Private (Supervisors only)
-// 1. Change 'export const' to 'const'
-// @desc    Add supervisor feedback to a task
-// @route   PATCH /api/projects/:id/tasks/:taskId/feedback
-// @access  Private (Supervisors only)
 const addTaskFeedback = async (req, res) => {
   try {
     const { id, taskId } = req.params; 
@@ -313,17 +383,12 @@ const addTaskFeedback = async (req, res) => {
     const task = project.tasks.id(taskId);
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    // 1. Save the feedback to the Project
     task.feedback = feedback;
     project.markModified('tasks'); 
     await project.save();
 
-    // 2. 🌟 CREATE THE NOTIFICATION 🌟
-    // If the task belongs to a specific student, alert them.
-    // If it is "Unassigned", alert the Project Leader so they know.
+    // ✅ NOTIFY STUDENT: Task feedback received
     const recipientId = task.assignedTo ? task.assignedTo : project.leader;
-    
-    // Assuming you have middleware that puts the logged-in user in `req.user`
     const senderId = req.user ? req.user._id : null; 
 
     await Notification.create({
@@ -332,7 +397,7 @@ const addTaskFeedback = async (req, res) => {
       title: "New Supervisor Feedback",
       message: `Your supervisor updated the instructions for: "${task.title}"`,
       type: "Feedback",
-      link: `/dashboard`, // Or whatever route your student tracker is on
+      link: `/projects/${project._id}`, 
       relatedId: project._id
     });
 
@@ -342,8 +407,6 @@ const addTaskFeedback = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-// 2. Add it to your module exports at the bottom of the file
-// Look for where your other functions are exported and add it there:
 
 /**
  * ==========================================
@@ -351,27 +414,77 @@ const addTaskFeedback = async (req, res) => {
  * ==========================================
  */
 
-// @desc    Submit Deliverable (Student)
 const submitDeliverable = asyncHandler(async (req, res) => {
-    const { deadlineId } = req.body;
+    const { deadlineId, title } = req.body;
     const project = await Project.findById(req.params.id);
-    if (!project) { res.status(404); throw new Error('Project not found'); }
     
-    const deadline = await Deadline.findById(deadlineId);
+    if (!project) { 
+        res.status(404); 
+        throw new Error('Project not found'); 
+    }
+    
+    let deadline = null;
+    
+    if (deadlineId && deadlineId !== 'null' && deadlineId !== 'undefined') {
+        deadline = await Deadline.findById(deadlineId);
+    }
+
     const newSubmission = {
-      deadlineId, 
-      title: deadline?.title || "Deliverable", 
+      deadlineId: deadline ? deadline._id : undefined,
+      title: title || deadline?.title || "General Resource", 
       fileUrl: req.file.secure_url || req.file.path,
-      submittedAt: new Date(), 
-      status: 'Submitted'
+      submittedAt: new Date(),
+      status: deadline ? 'Submitted' : 'Resource' 
     };
   
     project.submissions.push(newSubmission);
     await project.save();
-    res.json({ message: `Submitted`, submission: newSubmission });
+
+    // ✅ BROADCAST NOTIFICATIONS: File uploaded
+    const uploaderId = req.user._id.toString();
+    let recipients = [];
+
+    if (project.supervisor) recipients.push(project.supervisor.toString());
+    
+    if (project.leader && project.leader.toString() !== uploaderId) {
+        recipients.push(project.leader.toString());
+    }
+    
+    if (project.members && project.members.length > 0) {
+        project.members.forEach(memberId => {
+            if (memberId.toString() !== uploaderId) {
+                recipients.push(memberId.toString());
+            }
+        });
+    }
+
+    recipients = [...new Set(recipients)];
+
+    const notifTitle = deadline 
+        ? "New Deliverable Submitted" 
+        : newSubmission.title; 
+
+    const notifMessage = deadline 
+        ? `The group for "${project.title}" submitted a deliverable for: ${deadline.title}`
+        : `A new resource document was just shared in "${project.title}".`;
+
+    if (recipients.length > 0) {
+        const notificationPromises = recipients.map(recipientId => 
+            Notification.create({
+                recipient: recipientId,
+                sender: req.user._id,
+                title: notifTitle,
+                message: notifMessage,
+                type: 'System',
+                link: `/projects/${project._id}`
+            })
+        );
+        await Promise.all(notificationPromises);
+    }
+
+    res.json({ message: `File Uploaded successfully`, submission: newSubmission });
 });
 
-// @desc    Supervisor: Grade a Submission
 const gradeSubmission = asyncHandler(async (req, res) => {
     const { submissionId, marks, feedback } = req.body;
     const project = await Project.findById(req.params.id);
@@ -384,12 +497,26 @@ const gradeSubmission = asyncHandler(async (req, res) => {
     submission.feedback = feedback;
     submission.status = 'Approved'; 
     await project.save();
+
+    // ✅ NOTIFY STUDENTS: Specific submission graded
+    const teamMembers = [project.leader, ...(project.members || [])].filter(Boolean);
+    const notificationPromises = teamMembers.map(memberId => 
+        Notification.create({
+            recipient: memberId,
+            sender: req.user._id,
+            title: 'Submission Graded',
+            message: `Your submission "${submission.title}" has been graded! Marks: ${marks}`,
+            type: 'Grade',
+            link: `/projects/${project._id}`
+        })
+    );
+    await Promise.all(notificationPromises);
+
     res.json({ message: 'Grade updated successfully', project });
 });
 
-// @desc    Supervisor Dashboard
 const getSupervisorDashboard = asyncHandler(async (req, res) => {
-    const activeProjects = await Project.find({ supervisor: req.user._id, status: { $in: ['Ongoing', 'Approved', 'Completed'] } })
+    const activeProjects = await Project.find({ supervisor: req.user._id, status: { $in: ['Ongoing', 'Approved', 'Completed', 'Pending Evaluation', 'Revision Requested'] } })
         .populate('leader members', 'name email rollNo profilePicture')
         .sort({ updatedAt: -1 });
     const pendingRequests = await Project.find({ supervisionRequests: { $elemMatch: { teacherId: req.user._id, requestStatus: 'Sent' } } })
@@ -397,9 +524,145 @@ const getSupervisorDashboard = asyncHandler(async (req, res) => {
     res.json({ activeProjects, pendingRequests });
 });
 
+const submitForReview = asyncHandler(async (req, res) => {
+    const projectId = req.params.id;
+    const userId = req.user._id;
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+        res.status(404);
+        throw new Error('Project not found');
+    }
+
+    const isMember = project.members?.some(member => member._id.toString() === userId.toString()) ||
+                    project.leader?._id.toString() === userId.toString();
+    
+    if (!isMember) {
+        res.status(403);
+        throw new Error('Only project members can submit for review');
+    }
+
+    if (project.status === 'Pending Evaluation' || project.grade?.score) {
+        res.status(400);
+        throw new Error('Project is already submitted for review or has been graded');
+    }
+
+    project.status = 'Pending Evaluation';
+    await project.save();
+
+    // ✅ NOTIFY SUPERVISOR: Ready for final review
+    if (project.supervisor) {
+        await Notification.create({
+            recipient: project.supervisor._id,
+            sender: project.leader._id,
+            title: 'Project Submitted for Review',
+            message: `The group for "${project.title}" has submitted their project for final review!`,
+            type: 'System',
+            link: `/projects/${project._id}`
+        });
+    }
+
+    res.json({
+        message: 'Project submitted for final review successfully',
+        project
+    });
+});
+
+const requestRevision = asyncHandler(async (req, res) => {
+    const projectId = req.params.id;
+    const { feedback } = req.body;
+    const userId = req.user._id;
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+        res.status(404);
+        throw new Error('Project not found');
+    }
+
+    if (!project.supervisor || project.supervisor._id.toString() !== userId.toString()) {
+        res.status(403);
+        throw new Error('Only the assigned supervisor can request revisions');
+    }
+
+    project.status = 'Revision Requested';
+    await project.save();
+
+    // ✅ NOTIFY STUDENTS: Revision requested
+    const teamMembers = [project.leader, ...(project.members || [])].filter(Boolean);
+    
+    const notificationPromises = teamMembers.map(member => 
+        Notification.create({
+            recipient: member._id,
+            sender: req.user._id,
+            title: 'Revision Requested',
+            message: `Supervisor requested revisions on your final submission: "${feedback}"`,
+            type: 'Feedback',
+            link: `/projects/${project._id}`
+        })
+    );
+
+    await Promise.all(notificationPromises);
+
+    res.json({ 
+        message: 'Revision request sent successfully', 
+        project
+    });
+});
+
+const gradeProject = asyncHandler(async (req, res) => {
+    const { score, feedback } = req.body;
+    const projectId = req.params.id;
+
+    if (!score || score < 0 || score > 100) {
+        res.status(400);
+        throw new Error('Score must be between 0 and 100');
+    }
+
+    if (!feedback || feedback.trim() === '') {
+        res.status(400);
+        throw new Error('Feedback is required');
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+        res.status(404);
+        throw new Error('Project not found');
+    }
+
+    project.grade = {
+        score: Number(score),
+        feedback: feedback.trim(),
+        gradedBy: req.user._id,
+        gradedAt: Date.now()
+    };
+
+    project.status = 'Completed';
+    await project.save();
+
+    // ✅ NOTIFY STUDENTS: Final project graded
+    const teamMembers = [project.leader, ...(project.members || [])].filter(Boolean);
+    const notificationPromises = teamMembers.map(member => 
+      Notification.create({
+        recipient: member._id,
+        sender: req.user._id,
+        title: 'Project Graded',
+        message: `Your project has been officially graded and marked Completed! Check your dashboard.`,
+        type: 'Grade',
+        link: `/projects/${project._id}`
+      })
+    );
+
+    await Promise.all(notificationPromises);
+
+    res.json({
+        message: 'Project graded successfully',
+        project
+    });
+});
+
 /**
  * ==========================================
- * EXPORTS (13 Functions)
+ * EXPORTS
  * ==========================================
  */
 module.exports = {
@@ -415,7 +678,9 @@ module.exports = {
     gradeSubmission,
     addTask,
     claimTask, 
-
     updateTaskStatus,
-    addTaskFeedback // ✅ NEW EXPORT ADDED HERE
+    addTaskFeedback, 
+    gradeProject, 
+    submitForReview, 
+    requestRevision 
 };

@@ -1,13 +1,15 @@
-import React, { useState } from "react";
-import toast from 'react-hot-toast'; // ✅ Now actively used
+import React, { useState } from 'react';
+import { toast } from 'react-toastify'; 
 import { 
   FaPlus, FaCloudUploadAlt, FaFilePdf, 
-  FaIdCard, FaProjectDiagram, FaTrash 
-} from "react-icons/fa";
-import { motion } from "framer-motion";
-import api from "../../services/api";
+  FaIdCard, FaProjectDiagram, FaCheckCircle,
+  FaArrowRight
+} from 'react-icons/fa';
+import { motion } from 'framer-motion';
+import api from '../../services/api';
 
-const ProposalTab = ({ fetchData }) => {
+// ✅ Added `project` and `setActiveTab` to the props
+const ProposalTab = ({ fetchData, project, setActiveTab }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [file, setFile] = useState(null);
   const [formData, setFormData] = useState({
@@ -27,15 +29,15 @@ const ProposalTab = ({ fetchData }) => {
     if (selectedFile && selectedFile.type === "application/pdf") {
       setFile(selectedFile);
     } else {
-      toast.error("Please upload a valid PDF document."); // ✅ Replaced alert()
-      e.target.value = null; // Clear the bad input
+      toast.error("Please upload a valid PDF document."); 
+      e.target.value = null; 
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!file) {
-      toast.error("Please upload your proposal PDF."); // ✅ Replaced alert()
+      toast.error("Please upload your proposal PDF."); 
       return;
     }
     
@@ -54,9 +56,8 @@ const ProposalTab = ({ fetchData }) => {
       });
 
       if (response.status === 201 || response.status === 200) {
-        toast.success("Proposal submitted successfully!"); // ✅ Replaced alert()
+        toast.success("Proposal submitted successfully!"); 
         
-        // 1. Reset the local form state
         setFormData({
             title: "",
             technologies: "",
@@ -66,18 +67,53 @@ const ProposalTab = ({ fetchData }) => {
         });
         setFile(null);
 
-        // 2. Refresh parent data & auto-switch to Overview tab
         if (fetchData) {
             await fetchData(); 
         }
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Submission failed. Please try again."); // ✅ Replaced alert()
+      toast.error(error.response?.data?.message || "Submission failed. Please try again."); 
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // ✅ NEW LOGIC: If the student already has a project, show the Active Project Card instead of the form.
+  if (project) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }} 
+        animate={{ opacity: 1, scale: 1 }}
+        className="max-w-2xl mx-auto mt-12 bg-white p-12 rounded-[3rem] shadow-xl border border-slate-100 text-center relative overflow-hidden"
+      >
+        {/* Decorative Background Blur */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+        
+        <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-6 shadow-inner relative z-10">
+          <FaCheckCircle />
+        </div>
+        
+        <h2 className="text-3xl font-black text-slate-900 mb-4 tracking-tight relative z-10">
+          Proposal Already Approved
+        </h2>
+        
+        <p className="text-slate-600 font-medium leading-relaxed mb-8 max-w-md mx-auto relative z-10">
+          You are already assigned to the project <strong className="text-slate-900">"{project.title}"</strong>. You cannot submit multiple proposals.
+        </p>
+
+        <button 
+          onClick={() => {
+            if(setActiveTab) setActiveTab('overview');
+          }}
+          className="bg-slate-900 hover:bg-blue-600 text-white font-bold py-4 px-8 rounded-2xl transition-all duration-300 shadow-xl hover:shadow-blue-500/20 hover:-translate-y-1 flex items-center gap-3 mx-auto relative z-10"
+        >
+          Go to Project Dashboard <FaArrowRight />
+        </button>
+      </motion.div>
+    );
+  }
+
+  // ✅ EXISTING LOGIC: If they don't have a project, show the submission form.
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }} 
@@ -86,12 +122,12 @@ const ProposalTab = ({ fetchData }) => {
     >
       <header className="mb-10">
         <div className="flex items-center gap-3 mb-2">
-            <div className="bg-blue-100 text-blue-600 p-2 rounded-lg text-sm">
+            <div className="bg-blue-50 text-blue-600 p-2 rounded-lg text-sm">
                 <FaPlus />
             </div>
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Project Initiation</h3>
+            <h3 className="text-xl font-black text-slate-900 tracking-tight">Project Initiation</h3>
         </div>
-        <p className="text-gray-400 font-medium text-sm ml-1">Submit your proposal details for department approval.</p>
+        <p className="text-slate-500 font-medium text-sm ml-1">Submit your proposal details for department approval.</p>
       </header>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -99,13 +135,13 @@ const ProposalTab = ({ fetchData }) => {
         {/* Left Section: Details */}
         <div className="space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Project Title</label>
+            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Project Title</label>
             <input 
               name="title"
               type="text" 
               placeholder="e.g. AI-Based Surveillance System"
               required 
-              className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none font-bold text-gray-700 focus:ring-2 focus:ring-blue-100 transition-all"
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
               value={formData.title}
               onChange={handleChange}
             />
@@ -113,10 +149,10 @@ const ProposalTab = ({ fetchData }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Domain</label>
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Domain</label>
               <select 
                 name="domain"
-                className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none font-bold text-gray-700 cursor-pointer"
+                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-700 cursor-pointer focus:ring-2 focus:ring-blue-500 transition-all"
                 value={formData.domain}
                 onChange={handleChange}
               >
@@ -126,14 +162,15 @@ const ProposalTab = ({ fetchData }) => {
                 <option value="Cyber Security">Cyber Security</option>
               </select>
             </div>
+
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tech Stack</label>
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Tech Stack</label>
               <input 
                 name="technologies"
                 type="text" 
-                placeholder="MERN, Python"
+                placeholder="MERN, Python, TensorFlow"
                 required 
-                className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none font-bold text-gray-700 focus:ring-2 focus:ring-blue-100 transition-all"
+                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
                 value={formData.technologies}
                 onChange={handleChange}
               />
@@ -141,36 +178,41 @@ const ProposalTab = ({ fetchData }) => {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest ml-1 flex items-center gap-2">
-              <FaIdCard /> Teammates (Roll Numbers)
-            </label>
-            <input 
-              name="teammateRollNumbers"
-              type="text" 
-              placeholder="e.g. 2026-CS-12, 2026-CS-15"
-              className="w-full p-4 bg-blue-50/30 border border-blue-100 rounded-2xl outline-none font-bold text-blue-700 placeholder:text-blue-300 focus:ring-2 focus:ring-blue-200 transition-all"
-              value={formData.teammateRollNumbers}
-              onChange={handleChange}
-            />
-            <p className="text-[9px] text-gray-400 italic ml-1">* Separate roll numbers with commas</p>
-          </div>
-        </div>
-
-        {/* Right Section: Description & File */}
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Brief Description</label>
+            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Brief Description</label>
             <textarea 
               name="description"
-              placeholder="Outline the core problem and your proposed solution..." 
+              placeholder="Outline the core problem and your proposed solution..."
               required 
-              className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none font-bold h-32 resize-none text-gray-700 focus:ring-2 focus:ring-blue-100 transition-all"
+              className="w-full h-32 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 transition-all resize-none p-4"
               value={formData.description}
               onChange={handleChange}
             />
           </div>
 
-          <div className="border-4 border-dashed border-gray-50 rounded-[2rem] p-8 text-center relative hover:border-blue-100 transition-all group bg-white shadow-inner">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                <FaIdCard /> Teammates (Roll Nos)
+              </label>
+              <input 
+                name="teammateRollNumbers"
+                type="text" 
+                placeholder="e.g. 2026-CS-12, 2026-CS-15"
+                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 transition-all"
+                value={formData.teammateRollNumbers}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-[10px] font-black text-slate-400 italic mt-8">* Separate roll numbers with commas</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Section: Description & File */}
+        <div className="space-y-6">
+          <div className="border-4 border-dashed border-slate-100 rounded-[2rem] p-8 text-center relative hover:border-blue-400 transition-all group bg-slate-50/50 hover:bg-blue-50/30 h-[280px] flex flex-col items-center justify-center">
             <input 
               type="file" 
               accept="application/pdf" 
@@ -180,20 +222,20 @@ const ProposalTab = ({ fetchData }) => {
             />
             {file ? (
               <div className="flex flex-col items-center relative z-20">
-                <FaFilePdf className="text-5xl text-red-500 mb-2" />
-                <p className="text-xs font-bold text-slate-700 truncate max-w-[200px]">{file.name}</p>
+                <FaFilePdf className="text-5xl text-rose-500 mb-4" />
+                <p className="text-sm font-bold text-slate-700 truncate max-w-[200px] mb-4">{file.name}</p>
                 <button 
                     type="button" 
                     onClick={() => setFile(null)} 
-                    className="mt-3 px-4 py-1 bg-red-50 text-[10px] text-red-500 font-black uppercase tracking-widest rounded-lg hover:bg-red-500 hover:text-white transition-all relative z-20"
+                    className="px-6 py-2 bg-white border border-rose-200 text-[10px] text-rose-600 font-black uppercase tracking-widest rounded-xl hover:bg-rose-50 transition-all relative z-20 shadow-sm"
                 >
                     Remove File
                 </button>
               </div>
             ) : (
-              <div className="py-4">
-                <FaCloudUploadAlt className="mx-auto text-5xl text-gray-200 group-hover:text-blue-500 transition-colors mb-2" />
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest group-hover:text-blue-600 transition-colors">Click or Drag Proposal PDF</p>
+              <div>
+                <FaCloudUploadAlt className="mx-auto text-6xl text-slate-300 group-hover:text-blue-500 transition-colors mb-4" />
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest group-hover:text-blue-600 transition-colors">Click or Drag Proposal PDF</p>
               </div>
             )}
           </div>
@@ -201,10 +243,10 @@ const ProposalTab = ({ fetchData }) => {
           <button 
             type="submit" 
             disabled={isSubmitting}
-            className={`w-full py-5 text-white font-black rounded-2xl transition shadow-xl uppercase tracking-widest text-xs mt-2 ${
+            className={`w-full py-5 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all shadow-xl ${
               isSubmitting 
-              ? 'bg-gray-400 cursor-not-allowed shadow-none' 
-              : 'bg-blue-600 hover:bg-blue-700 shadow-blue-100 hover:shadow-blue-200 active:scale-95'
+              ? 'bg-slate-400 cursor-not-allowed shadow-none' 
+              : 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-500/20 active:scale-95'
             }`}
           >
             {isSubmitting ? 'Uploading to Nexus...' : 'Submit to Department'}

@@ -32,4 +32,17 @@ api.interceptors.response.use(
   }
 );
 
+// ==========================================
+// PROJECT WORKFLOW APIs
+// ==========================================
+
+// 1. Student: Submit project for final supervisor review
+export const submitProjectForReview = (projectId) => api.put(`/projects/${projectId}/submit-for-review`);
+
+// 2. Supervisor: Request changes/revision from students
+export const requestProjectRevision = (projectId, data) => api.put(`/projects/${projectId}/request-revision`, data);
+
+// 3. Supervisor: Give final grade and automatically mark as complete
+export const submitProjectGrade = (projectId, gradeData) => api.put(`/projects/${projectId}/grade-project`, gradeData);
+
 export default api;

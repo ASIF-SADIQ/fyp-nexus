@@ -2,6 +2,7 @@ const asyncHandler = require('express-async-handler');
 const Deadline = require('../models/Deadline');
 const User = require('../models/User');
 const Project = require('../models/Project');
+const Notification = require('../models/Notification'); // ✅ Make sure this is imported!
 
 /**
  * @desc    Create a new deadline (Admin or Supervisor)
@@ -35,8 +36,58 @@ const createDeadline = asyncHandler(async (req, res) => {
     targetProject,
     type,
     isHardDeadline,
-    createdBy: req.user._id // Automatically track the creator
+    createdBy: req.user._id
   });
+
+  // ==========================================
+  // ✅ AUTOMATED NOTIFICATION BROADCAST LOGIC
+  // ==========================================
+  try {
+    let targetUserIds = [];
+
+    if (scope === 'Global') {
+      // Find ALL students
+      const students = await User.find({ role: 'student' }).select('_id');
+      targetUserIds = students.map(s => s._id);
+
+    } else if (scope === 'Batch') {
+      // Find students in specific batch and department
+      const students = await User.find({ 
+        role: 'student',
+        batch: { $regex: new RegExp(`^${batch}$`, 'i') },
+        department: { $regex: new RegExp(`^${department}$`, 'i') }
+      }).select('_id');
+      targetUserIds = students.map(s => s._id);
+
+    } else if (scope === 'Group' && targetProject) {
+      // Find specific members of the target project
+      const project = await Project.findById(targetProject).select('leader members');
+      if (project) {
+        targetUserIds = [project.leader, ...project.members];
+      }
+    }
+
+    // Create notifications in bulk if we found targets
+    if (targetUserIds.length > 0) {
+      const formattedDate = new Date(deadlineDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      
+      const notificationsToInsert = targetUserIds.map(userId => ({
+        recipient: userId,
+        type: 'Deadline', // Or 'System', depending on your Notification model enum
+        title: '🚨 New Deadline Posted',
+        message: `"${title}" is due on ${formattedDate}.`,
+        link: '/dashboard', // Links back to the overview/deadline tab
+        isRead: false
+      }));
+
+      await Notification.insertMany(notificationsToInsert);
+    }
+  } catch (error) {
+    console.error("Error broadcasting deadline notifications:", error);
+    // Note: We don't throw an error here because the deadline was already created successfully.
+    // We don't want a notification failure to crash the deadline creation process.
+  }
+  // ==========================================
 
   res.status(201).json(deadline);
 });

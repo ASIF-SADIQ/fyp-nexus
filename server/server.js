@@ -92,6 +92,7 @@ app.use((err, req, res, next) => {
 
 // --- 5. SERVER START ---
 const PORT = process.env.PORT || 5000;
+connectDB(); // ✅ CRITICAL: Connect to database before starting server
 app.listen(PORT, () => {
   console.log(`🚀 Server active on port ${PORT}`);
   if (!process.env.CLOUDINARY_NAME) {

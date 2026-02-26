@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { 
   FaBell, FaCheckCircle, FaExclamationCircle, FaInfoCircle, 
   FaClipboardCheck, FaEnvelopeOpen, FaTasks 
@@ -8,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../services/api';
 
 const NotificationsTab = () => {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,8 +34,9 @@ const NotificationsTab = () => {
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
-  // ✅ Handler: Mark single as read & Navigate
+  // ✅ Handler: Mark single as read & Navigate Safely
   const handleNotificationClick = async (n) => {
+    // 1. Mark as read in the database
     if (!n.isRead) {
       try {
         await api.put(`/notifications/${n._id}/read`);
@@ -43,9 +46,9 @@ const NotificationsTab = () => {
       }
     }
     
-    // Redirect user to the project or dashboard if a link exists
-    if (n.link) {
-        window.location.href = n.link;
+    // 2. 🛑 THE FIX: Only navigate if the link is actually valid and not an empty string/root path!
+    if (n.link && n.link.length > 1 && n.link !== "/") {
+        navigate(n.link);
     }
   };
 
@@ -72,8 +75,8 @@ const NotificationsTab = () => {
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center p-20 space-y-4">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Fetching Comms...</p>
+        <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-neutral-400 text-xs font-black uppercase tracking-widest">Fetching Comms...</p>
     </div>
   );
 
@@ -83,20 +86,20 @@ const NotificationsTab = () => {
       {/* Header */}
       <div className="flex justify-between items-end">
         <div>
-           <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+           <h2 className="text-2xl font-black text-neutral-900 tracking-tight flex items-center gap-3">
              Notification Center 
              {notifications.some(n => !n.isRead) && (
-                <span className="bg-rose-500 text-white text-[10px] px-2 py-1 rounded-lg">
+                <span className="bg-error-500 text-white text-xs px-2 py-1 rounded-lg">
                     {notifications.filter(n => !n.isRead).length} New
                 </span>
              )}
            </h2>
-           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Project Updates & Assignments</p>
+           <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest mt-1">Project Updates & Assignments</p>
         </div>
         {notifications.some(n => !n.isRead) && (
           <button 
             onClick={markAllRead}
-            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors active:scale-95"
+            className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-neutral-400 hover:text-primary-600 transition-colors active:scale-95"
           >
             <FaEnvelopeOpen /> Mark all read
           </button>
@@ -113,38 +116,38 @@ const NotificationsTab = () => {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               onClick={() => handleNotificationClick(n)}
-              className={`relative p-6 rounded-[1.5rem] border transition-all cursor-pointer group hover:shadow-md
-                ${n.isRead ? 'bg-slate-50/50 border-slate-100 opacity-80' : 'bg-white border-blue-100 shadow-sm hover:border-blue-300'}
+              className={`relative p-6 rounded-2xl border transition-all cursor-pointer group hover:shadow-md
+                ${n.isRead ? 'bg-neutral-50/50 border-neutral-100 opacity-80' : 'bg-white border-primary-100 shadow-sm hover:border-primary-300'}
               `}
             >
               {!n.isRead && (
-                <span className="absolute top-6 right-6 w-2.5 h-2.5 bg-blue-600 rounded-full animate-pulse" />
+                <span className="absolute top-6 right-6 w-2.5 h-2.5 bg-primary-600 rounded-full animate-pulse" />
               )}
 
               <div className="flex items-start gap-5">
-                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-sm border border-slate-50 ${n.isRead ? 'bg-slate-100' : 'bg-blue-50'}`}>
+                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-sm border border-neutral-50 ${n.isRead ? 'bg-neutral-100' : 'bg-primary-50'}`}>
                     {getIcon(n.type)}
                  </div>
 
                  <div className="flex-1">
                     <div className="flex justify-between items-start mb-1">
-                       <h4 className={`text-sm font-black tracking-tight ${n.isRead ? 'text-slate-600' : 'text-slate-900'}`}>
+                       <h4 className={`text-sm font-black tracking-tight ${n.isRead ? 'text-neutral-600' : 'text-neutral-900'}`}>
                         {n.title}
                        </h4>
-                       <span className="text-[9px] font-bold text-slate-400 uppercase">
+                       <span className="text-xs font-bold text-neutral-400 uppercase">
                          {new Date(n.createdAt).toLocaleDateString()}
                        </span>
                     </div>
-                    <p className={`text-xs font-medium leading-relaxed ${n.isRead ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <p className={`text-xs font-medium leading-relaxed ${n.isRead ? 'text-neutral-400' : 'text-neutral-600'}`}>
                       {n.message}
                     </p>
                  </div>
               </div>
             </motion.div>
           )) : (
-            <div className="text-center py-20 bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200">
-               <FaBell className="mx-auto text-slate-200 text-4xl mb-4" />
-               <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">No notifications yet</p>
+            <div className="text-center py-20 bg-neutral-50 rounded-3xl border-2 border-dashed border-neutral-200">
+               <FaBell className="mx-auto text-neutral-200 text-4xl mb-4" />
+               <p className="text-neutral-400 font-bold text-xs uppercase tracking-widest">No notifications yet</p>
             </div>
           )}
         </AnimatePresence>

@@ -52,11 +52,11 @@ const RoadmapTab = ({ project, setProject }) => {
   };
 
   return (
-    <div className="p-6 bg-white rounded-xl shadow-sm border border-slate-100">
+    <div className="p-8 bg-white rounded-3xl shadow-sm border border-neutral-100">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">Project Roadmap</h2>
+        <h2 className="text-2xl font-black text-neutral-900">Project Roadmap</h2>
         {project.roadmap && project.roadmap.length > 0 && (
-          <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-bold animate-pulse">
+          <span className="bg-success-100 text-success-700 text-xs px-3 py-1 rounded-full font-black animate-pulse">
             Live & Tracking
           </span>
         )}
@@ -64,30 +64,30 @@ const RoadmapTab = ({ project, setProject }) => {
 
       {/* --- 1. INITIAL SETUP (Show if no roadmap exists) --- */}
       {(!project.roadmap || project.roadmap.length === 0) && !generatedRoadmap && (
-        <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
-          <div className="mb-4 inline-flex p-4 bg-indigo-100 rounded-full text-indigo-600">
+        <div className="text-center py-12 border-2 border-dashed border-neutral-200 rounded-3xl bg-neutral-50">
+          <div className="mb-4 inline-flex p-4 bg-primary-100 rounded-full text-primary-600">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-slate-700">Set Project Timeline</h3>
-          <p className="text-slate-500 mb-6 text-sm">AI will distribute phases between your start and end dates.</p>
+          <h3 className="text-lg font-black text-neutral-800">Set Project Timeline</h3>
+          <p className="text-neutral-600 mb-6 text-sm">AI will distribute phases between your start and end dates.</p>
           
           <div className="flex flex-col sm:flex-row justify-center gap-4 mb-6 max-w-md mx-auto">
             <div className="text-left w-full">
-              <label className="text-xs font-bold text-slate-400 ml-1 uppercase">Start Date</label>
+              <label className="text-xs font-black text-neutral-400 ml-1 uppercase tracking-widest">Start Date</label>
               <input 
                 type="date" 
-                className="w-full border border-slate-200 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
+                className="w-full border border-neutral-200 p-3 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition-all" 
                 value={dates.startDate}
                 onChange={(e) => setDates({...dates, startDate: e.target.value})}
               />
             </div>
             <div className="text-left w-full">
-              <label className="text-xs font-bold text-slate-400 ml-1 uppercase">End Date</label>
+              <label className="text-xs font-black text-neutral-400 ml-1 uppercase tracking-widest">End Date</label>
               <input 
                 type="date" 
-                className="w-full border border-slate-200 p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
+                className="w-full border border-neutral-200 p-3 rounded-2xl focus:ring-2 focus:ring-primary-500 outline-none transition-all" 
                 value={dates.endDate}
                 onChange={(e) => setDates({...dates, endDate: e.target.value})}
               />
@@ -97,7 +97,7 @@ const RoadmapTab = ({ project, setProject }) => {
           <button 
             onClick={handleGenerate}
             disabled={loading}
-            className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-50"
+            className="bg-primary-600 text-white px-8 py-3 rounded-2xl font-black shadow-lg shadow-primary-100 hover:bg-primary-700 transition-all disabled:opacity-50"
           >
             {loading ? "Architecting Plan..." : "Generate AI Roadmap"}
           </button>
@@ -107,17 +107,17 @@ const RoadmapTab = ({ project, setProject }) => {
       {/* --- 2. AI PREVIEW (Review before saving) --- */}
       {generatedRoadmap && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="bg-amber-50 border border-amber-200 p-5 rounded-xl mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="bg-warning-50 border border-warning-200 p-5 rounded-2xl mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
-              <p className="text-amber-800 font-bold">Review AI Roadmap</p>
-              <p className="text-amber-700 text-sm">Applying this will initialize tasks for all group members.</p>
+              <p className="text-warning-800 font-black">Review AI Roadmap</p>
+              <p className="text-warning-700 text-sm">Applying this will initialize tasks for all group members.</p>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setGeneratedRoadmap(null)} className="px-4 py-2 text-slate-600 font-medium">Discard</button>
+              <button onClick={() => setGeneratedRoadmap(null)} className="px-4 py-2 text-neutral-600 font-medium">Discard</button>
               <button 
                 onClick={handleApply} 
                 disabled={applying}
-                className="bg-emerald-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-emerald-700 shadow-md disabled:opacity-50"
+                className="bg-success-600 text-white px-6 py-2 rounded-2xl font-black hover:bg-success-700 shadow-md disabled:opacity-50"
               >
                 {applying ? "Saving..." : "Apply to Project"}
               </button>
@@ -126,13 +126,13 @@ const RoadmapTab = ({ project, setProject }) => {
 
           <div className="space-y-6">
             {generatedRoadmap.map((phase, idx) => (
-              <div key={idx} className="relative pl-8 border-l-2 border-indigo-100 pb-2">
-                <div className="absolute -left-2 top-0 w-4 h-4 bg-indigo-500 rounded-full border-4 border-white shadow-sm" />
-                <h3 className="font-bold text-slate-800">{phase.phase}</h3>
-                <p className="text-xs font-bold text-indigo-500 mb-3 uppercase tracking-wider">{phase.dateRange}</p>
+              <div key={idx} className="relative pl-8 border-l-2 border-primary-100 pb-2">
+                <div className="absolute -left-2 top-0 w-4 h-4 bg-primary-500 rounded-full border-4 border-white shadow-sm" />
+                <h3 className="font-black text-neutral-800">{phase.phase}</h3>
+                <p className="text-xs font-black text-primary-500 mb-3 uppercase tracking-widest">{phase.dateRange}</p>
                 <div className="flex flex-wrap gap-2">
                   {phase.tasks.map((t, i) => (
-                    <span key={i} className="bg-slate-100 text-slate-600 px-3 py-1 rounded-md text-[10px] font-medium border border-slate-200">
+                    <span key={i} className="bg-neutral-100 text-neutral-600 px-3 py-1 rounded-2xl text-xs font-medium border border-neutral-200">
                       {t}
                     </span>
                   ))}
@@ -145,12 +145,12 @@ const RoadmapTab = ({ project, setProject }) => {
 
       {/* --- 3. LIVE ROADMAP (The Vertical Timeline) --- */}
       {project.roadmap && project.roadmap.length > 0 && (
-        <div className="mt-8 space-y-0 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-indigo-500 before:via-slate-200 before:to-transparent">
+        <div className="mt-8 space-y-0 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-primary-500 before:via-neutral-200 before:to-transparent">
           {project.roadmap.map((phase, idx) => (
             <div key={idx} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group mb-10">
               {/* Dot */}
               <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-white shadow-sm shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 ${
-                phase.status === 'Completed' ? 'bg-emerald-500 text-white' : 'bg-indigo-500 text-white'
+                phase.status === 'Completed' ? 'bg-success-500 text-white' : 'bg-primary-500 text-white'
               }`}>
                 {phase.status === 'Completed' ? (
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
@@ -160,14 +160,14 @@ const RoadmapTab = ({ project, setProject }) => {
               </div>
               
               {/* Card */}
-              <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-5 rounded-2xl border border-slate-200 bg-white shadow-sm hover:border-indigo-300 transition-colors">
+              <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-5 rounded-2xl border border-neutral-200 bg-white shadow-sm hover:border-primary-300 transition-colors">
                 <div className="flex items-center justify-between gap-2 mb-2">
-                  <div className="font-bold text-slate-800 text-lg leading-tight">{phase.phase}</div>
-                  <span className="shrink-0 font-mono text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-bold">{phase.description}</span>
+                  <div className="font-black text-neutral-800 text-lg leading-tight">{phase.phase}</div>
+                  <span className="shrink-0 font-mono text-xs bg-primary-50 text-primary-600 px-2 py-1 rounded font-black">{phase.description}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${phase.status === 'Completed' ? 'bg-emerald-500' : 'bg-amber-400'}`}></div>
-                  <span className="text-slate-500 text-xs font-medium uppercase tracking-tighter">
+                  <div className={`w-2 h-2 rounded-full ${phase.status === 'Completed' ? 'bg-success-500' : 'bg-warning-400'}`}></div>
+                  <span className="text-neutral-600 text-xs font-medium uppercase tracking-tighter">
                     Status: {phase.status}
                   </span>
                 </div>

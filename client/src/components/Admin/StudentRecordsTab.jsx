@@ -199,6 +199,7 @@ const StudentRecordsTab = ({ projects, users, searchTerm, refresh, onEdit }) => 
                     <th className="px-8 py-6">Identity & Network</th>
                     <th className="px-8 py-6">Academic Vector</th>
                     <th className="px-8 py-6">FYP Status</th>
+                    <th className="px-8 py-6">Grade / Status</th>
                     <th className="px-8 py-6 text-right">Operations</th>
                   </tr>
                 </thead>
@@ -229,6 +230,13 @@ const StudentRecordsTab = ({ projects, users, searchTerm, refresh, onEdit }) => 
                             </div>
                           ) : (
                             <span className="text-slate-300 uppercase text-[8px] font-black tracking-widest border border-slate-100 px-2 py-1 rounded-lg">No Submission</span>
+                          )}
+                        </td>
+                        <td className="px-8 py-6">
+                          {project?.grade?.score ? (
+                            <span className="badge-success">{project.grade.score}/100</span>
+                          ) : (
+                            <span className="badge-info">Pending Eval</span>
                           )}
                         </td>
                         <td className="px-8 py-6 text-right" onClick={(e) => e.stopPropagation()}>

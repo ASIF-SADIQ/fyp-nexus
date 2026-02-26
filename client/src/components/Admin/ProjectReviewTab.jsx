@@ -226,6 +226,7 @@ const ProjectReviewTab = ({ projects, users, searchTerm, refresh }) => {
                   <th className="px-8 py-6">Project Title & Lead</th>
                   <th className="px-8 py-6 text-center">Dossier</th>
                   {searchTerm.toLowerCase() !== "approved" && <th className="px-8 py-6">Faculty Designation</th>}
+                  <th className="px-8 py-6 text-center">Grade / Status</th>
                   <th className="px-8 py-6 text-right">Directives</th>
                 </tr>
               </thead>
@@ -269,6 +270,14 @@ const ProjectReviewTab = ({ projects, users, searchTerm, refresh }) => {
                       </td>
                     )}
 
+                    <td className="px-8 py-6 text-center" onClick={(e) => e.stopPropagation()}>
+                      {p.grade?.score ? (
+                        <span className="badge-success">{p.grade.score}/100</span>
+                      ) : (
+                        <span className="badge-info">Pending Eval</span>
+                      )}
+                    </td>
+
                     <td className="px-8 py-6 text-right" onClick={(e) => e.stopPropagation()}>
                       {p.status === "Pending" ? (
                         <div className="flex justify-end gap-2">
@@ -295,7 +304,7 @@ const ProjectReviewTab = ({ projects, users, searchTerm, refresh }) => {
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan="4" className="py-32 text-center">
+                    <td colSpan="5" className="py-32 text-center">
                       <FaProjectDiagram className="mx-auto text-slate-100 text-6xl mb-6" />
                       <p className="text-slate-300 font-black text-xs uppercase tracking-[0.4em]">Registry is currently empty</p>
                     </td>

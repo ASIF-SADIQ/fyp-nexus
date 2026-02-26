@@ -1,6 +1,9 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
+// ✅ DESIGN SYSTEM
+import "./styles/design-system.css";
+
 // ✅ FIX: Swapped to react-toastify so it matches all your components perfectly
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css"; 

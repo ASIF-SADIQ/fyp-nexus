@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 
 const notificationSchema = new mongoose.Schema({
-  // ✅ Renamed 'receiver' to 'recipient' to match standard conventions
   recipient: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -11,7 +10,6 @@ const notificationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
-  // ✅ ADDED: Title for bold headers in the UI
   title: {
     type: String,
     required: true
@@ -20,7 +18,6 @@ const notificationSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  // ✅ UPDATED: Enums to cover all new features (Grading, Tasks, etc.)
   type: {
     type: String,
     enum: ['System', 'Feedback', 'Grade', 'Deadline', 'Task', 'Approval', 'Rejection'], 
@@ -30,14 +27,17 @@ const notificationSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  // ✅ ADDED: Navigation support
   link: { 
     type: String, 
-    default: "" // e.g., "/dashboard" or "/projects/123"
+    default: "" 
   },
   relatedId: { 
-    type: mongoose.Schema.Types.ObjectId // Optional: ID of the Project/Task/Submission
+    type: mongoose.Schema.Types.ObjectId 
   }
 }, { timestamps: true });
+
+// ✅ ADDED: Indexing for faster queries when fetching a user's unread notifications
+notificationSchema.index({ recipient: 1, isRead: 1 });
+notificationSchema.index({ createdAt: -1 }); // Helps sort by newest quickly
 
 module.exports = mongoose.model('Notification', notificationSchema);

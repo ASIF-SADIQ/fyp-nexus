@@ -19,10 +19,12 @@ const app = express();
 // --- 1. SECURITY & MIDDLEWARE ---
 app.use(helmet()); 
 
-// ✅ EMERGENCY FIX: This allows any origin to connect, fixing the CORS error
+// ✅ FINAL FIX: This allows your Vercel site to talk to your Render server without being blocked
 app.use(cors({
   origin: true, 
-  credentials: true
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
 app.use(express.json({ limit: '10mb' })); 

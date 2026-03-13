@@ -4,6 +4,7 @@ const Project = require('../models/Project');
 const User = require('../models/User');
 const Deadline = require('../models/Deadline');
 const Notification = require('../models/Notification');
+const { sendEmail, sendProjectEmails } = require('../utils/emailService');
 
 /**
  * ✅ HELPER FUNCTION: RECALCULATE MEMBER PROGRESS
@@ -139,7 +140,7 @@ const createProject = asyncHandler(async (req, res) => {
     leaderUser.isLeader = true;
     await leaderUser.save();
 
-    // ✅ NOTIFY ADMINS: When a student submits a proposal
+    // ✅ NOTIFY ADMINS: In-app notification
     const admins = await User.find({ role: 'admin' }); 
     if (admins.length > 0) {
         const adminNotifications = admins.map(admin => ({
@@ -152,6 +153,14 @@ const createProject = asyncHandler(async (req, res) => {
             relatedId: project._id
         }));
         await Notification.insertMany(adminNotifications);
+
+        // ✅ 📧 EMAIL TRIGGER: Notify Admins via Email
+        for (const admin of admins) {
+            await sendEmail(admin._id, 'systemNotification', {
+                title: 'New Project Proposal Submitted',
+                message: `Student ${leaderUser.name} has submitted a new project proposal titled "${project.title}". Please log in to the NEXUS Admin Panel to review it.`
+            });
+        }
     }
 
     res.status(201).json(project);
@@ -185,7 +194,7 @@ const updateProjectStatus = asyncHandler(async (req, res) => {
     if (adminFeedback) project.adminFeedback = adminFeedback;
     await project.save();
 
-    // ✅ NOTIFY STUDENTS: When admin approves/rejects proposal
+    // ✅ NOTIFY STUDENTS: In-app
     if (status && status !== previousStatus) {
         let notifTitle = 'Project Status Updated';
         let notifType = 'System';
@@ -194,7 +203,7 @@ const updateProjectStatus = asyncHandler(async (req, res) => {
         if (status === 'Approved') {
             notifTitle = 'Proposal Approved!';
             notifType = 'Approval';
-            notifMessage = `Great news! Your project proposal "${project.title}" has been approved.`;
+            notifMessage = `Great news! Your project proposal "${project.title}" has been approved by the Admin.`;
         } else if (status === 'Rejected') {
             notifTitle = 'Proposal Rejected';
             notifType = 'Rejection';
@@ -202,7 +211,6 @@ const updateProjectStatus = asyncHandler(async (req, res) => {
         }
 
         const teamMembers = [project.leader, ...(project.members || [])].filter(Boolean);
-        
         if (teamMembers.length > 0) {
             const notificationPromises = teamMembers.map(memberId => 
                 Notification.create({
@@ -217,6 +225,12 @@ const updateProjectStatus = asyncHandler(async (req, res) => {
             );
             await Promise.all(notificationPromises);
         }
+
+        // ✅ 📧 EMAIL TRIGGER: Send team-wide status update email
+        await sendProjectEmails(project._id, status === 'Approved' ? 'projectUpdate' : 'systemNotification', {
+            projectName: project.title,
+            message: notifMessage
+        });
     }
 
     res.json(project);
@@ -229,7 +243,6 @@ const requestSupervisor = asyncHandler(async (req, res) => {
     if (!project) { res.status(404); throw new Error('Project not found'); }
     if (!teacherId) { res.status(400); throw new Error('Please select a supervisor'); }
 
-    // Optional: Prevent sending duplicate requests to the same teacher
     const alreadyRequested = project.supervisionRequests.some(
         (req) => req.teacherId.toString() === teacherId && req.requestStatus === 'Sent'
     );
@@ -243,15 +256,10 @@ const requestSupervisor = asyncHandler(async (req, res) => {
         throw new Error(`${capacity.name} is at maximum project capacity.`);
     }
     
-    // ✅ 1. Only push to the requests array. 
     project.supervisionRequests.push({ teacherId, requestStatus: 'Sent', requestDate: Date.now() });
-    
-    // ✅ 2. REMOVED: project.supervisor = teacherId; <-- This was causing the block!
-    // ✅ 3. REMOVED: project.supervisorStatus = 'Pending'; <-- This too!
-    
     await project.save();
 
-    // ✅ NOTIFY SUPERVISOR: When student requests them
+    // ✅ NOTIFY SUPERVISOR: In-app
     await Notification.create({
         recipient: teacherId,
         sender: req.user._id,
@@ -260,6 +268,12 @@ const requestSupervisor = asyncHandler(async (req, res) => {
         message: `Project "${project.title}" requested your supervision.`,
         link: '/dashboard',
         relatedId: project._id
+    });
+
+    // ✅ 📧 EMAIL TRIGGER: Send email to Teacher about the request
+    await sendEmail(teacherId, 'systemNotification', {
+        title: 'New Supervision Request',
+        message: `A student group has requested you to supervise their project: "${project.title}". Please visit the NEXUS Portal to Accept or Reject.`
     });
 
     res.json({ message: `Request sent to ${capacity.name} successfully`, project });
@@ -288,7 +302,7 @@ const respondToRequest = asyncHandler(async (req, res) => {
         await User.findByIdAndUpdate(req.user._id, { $inc: { currentProjectsCount: 1 } });
         
         notifTitle = 'Supervision Request Accepted';
-        notifMessage = `A supervisor has accepted your request for "${project.title}".`;
+        notifMessage = `Supervisor ${req.user.name} has accepted your request for "${project.title}".`;
         notifType = 'Approval';
     } else {
         project.supervisionRequests[requestIndex].requestStatus = 'Rejected';
@@ -296,13 +310,13 @@ const respondToRequest = asyncHandler(async (req, res) => {
         project.supervisorStatus = 'Rejected';
         
         notifTitle = 'Supervision Request Rejected';
-        notifMessage = `Your supervision request for "${project.title}" was declined.`;
+        notifMessage = `Your supervision request for "${project.title}" was declined by the supervisor.`;
         notifType = 'Rejection';
     }
 
     await project.save();
 
-    // ✅ NOTIFY STUDENTS: When Supervisor accepts/rejects the request
+    // ✅ NOTIFY STUDENTS: In-app
     const teamMembers = [project.leader, ...(project.members || [])].filter(Boolean);
     const notificationPromises = teamMembers.map(memberId => 
         Notification.create({
@@ -315,6 +329,12 @@ const respondToRequest = asyncHandler(async (req, res) => {
         })
     );
     await Promise.all(notificationPromises);
+
+    // ✅ 📧 EMAIL TRIGGER: Send response email to all students
+    await sendProjectEmails(project._id, action === 'Accept' ? 'projectUpdate' : 'systemNotification', {
+        projectName: project.title,
+        message: notifMessage
+    }, req.user._id);
 
     res.json({ message: `Success: ${action}`, project });
 });
@@ -329,15 +349,37 @@ const addTask = asyncHandler(async (req, res) => {
     const { title, assignedTo, priority, dueDate } = req.body;
     const project = await Project.findById(req.params.id);
 
-    if (!project) { res.status(404); throw new Error('Project not found'); }
+    if (!project) { 
+        res.status(404); 
+        throw new Error('Project not found'); 
+    }
 
-    project.tasks.push({ title, assignedTo: assignedTo || null, priority: priority || 'Medium', dueDate, status: 'To Do' });
+    // 1. Add the task to the database
+    project.tasks.push({ 
+        title, 
+        assignedTo: assignedTo || null, 
+        priority: priority || 'Medium', 
+        dueDate, 
+        status: 'To Do' 
+    });
+
     await syncProjectProgress(project);
     await project.save();
 
+    // ✅ 📧 EMAIL TRIGGER: Notify the WHOLE PROJECT TEAM
+    // We pass req.user._id as the 4th argument to EXCLUDE the supervisor
+    const emailData = {
+        projectName: project.title,
+        taskTitle: title,
+        description: `A new task "${title}" has been added to your project. 
+                      Priority: ${priority || 'Medium'}. 
+                      Assigned to: ${assignedTo ? 'A team member' : 'Unassigned'}.`
+    };
+
+    await sendProjectEmails(project._id, 'taskAssignment', emailData, req.user._id);
+
     res.json(project);
 });
-
 const claimTask = asyncHandler(async (req, res) => {
     const project = await Project.findById(req.params.id);
     if (!project) { res.status(404); throw new Error('Project not found'); }
@@ -369,6 +411,16 @@ const updateTaskStatus = asyncHandler(async (req, res) => {
     await syncProjectProgress(project);
     await project.save();
 
+    // ✅ 📧 EMAIL TRIGGER: Notify Supervisor of Milestone Progress
+    if (status === 'Done' || status === 'Completed') {
+        if (project.supervisor) {
+            await sendEmail(project.supervisor, 'systemNotification', {
+                title: 'Task Milestone Reached',
+                message: `The task "${task.title}" in project "${project.title}" has been completed by ${req.user.name}.`
+            });
+        }
+    }
+
     res.json(project);
 });
 
@@ -387,13 +439,11 @@ const addTaskFeedback = async (req, res) => {
     project.markModified('tasks'); 
     await project.save();
 
-    // ✅ NOTIFY STUDENT: Task feedback received
+    // ✅ NOTIFY STUDENT: In-app
     const recipientId = task.assignedTo ? task.assignedTo : project.leader;
-    const senderId = req.user ? req.user._id : null; 
-
     await Notification.create({
       recipient: recipientId,
-      sender: senderId,
+      sender: req.user._id,
       title: "New Supervisor Feedback",
       message: `Your supervisor updated the instructions for: "${task.title}"`,
       type: "Feedback",
@@ -401,9 +451,14 @@ const addTaskFeedback = async (req, res) => {
       relatedId: project._id
     });
 
+    // ✅ 📧 EMAIL TRIGGER: Notify Student about Feedback
+    await sendEmail(recipientId, 'systemNotification', {
+        title: 'New Feedback on Task',
+        message: `Supervisor ${req.user.name} added instructions to your task: "${task.title}". Feedback: ${feedback}`
+    });
+
     res.status(200).json({ message: "Feedback saved and notification sent!" });
   } catch (error) {
-    console.error("🔥 Controller Error:", error.message);
     res.status(500).json({ message: error.message });
   }
 };
@@ -418,13 +473,9 @@ const submitDeliverable = asyncHandler(async (req, res) => {
     const { deadlineId, title } = req.body;
     const project = await Project.findById(req.params.id);
     
-    if (!project) { 
-        res.status(404); 
-        throw new Error('Project not found'); 
-    }
+    if (!project) { res.status(404); throw new Error('Project not found'); }
     
     let deadline = null;
-    
     if (deadlineId && deadlineId !== 'null' && deadlineId !== 'undefined') {
         deadline = await Deadline.findById(deadlineId);
     }
@@ -440,46 +491,22 @@ const submitDeliverable = asyncHandler(async (req, res) => {
     project.submissions.push(newSubmission);
     await project.save();
 
-    // ✅ BROADCAST NOTIFICATIONS: File uploaded
-    const uploaderId = req.user._id.toString();
-    let recipients = [];
-
-    if (project.supervisor) recipients.push(project.supervisor.toString());
-    
-    if (project.leader && project.leader.toString() !== uploaderId) {
-        recipients.push(project.leader.toString());
-    }
-    
-    if (project.members && project.members.length > 0) {
-        project.members.forEach(memberId => {
-            if (memberId.toString() !== uploaderId) {
-                recipients.push(memberId.toString());
-            }
+    // ✅ NOTIFY SUPERVISOR: In-app
+    if (project.supervisor) {
+        await Notification.create({
+            recipient: project.supervisor,
+            sender: req.user._id,
+            title: "New Deliverable Submitted",
+            message: `The group for "${project.title}" has submitted: ${newSubmission.title}`,
+            type: 'System',
+            link: `/projects/${project._id}`
         });
-    }
 
-    recipients = [...new Set(recipients)];
-
-    const notifTitle = deadline 
-        ? "New Deliverable Submitted" 
-        : newSubmission.title; 
-
-    const notifMessage = deadline 
-        ? `The group for "${project.title}" submitted a deliverable for: ${deadline.title}`
-        : `A new resource document was just shared in "${project.title}".`;
-
-    if (recipients.length > 0) {
-        const notificationPromises = recipients.map(recipientId => 
-            Notification.create({
-                recipient: recipientId,
-                sender: req.user._id,
-                title: notifTitle,
-                message: notifMessage,
-                type: 'System',
-                link: `/projects/${project._id}`
-            })
-        );
-        await Promise.all(notificationPromises);
+        // ✅ 📧 EMAIL TRIGGER: Notify Supervisor about File Upload
+        await sendEmail(project.supervisor, 'systemNotification', {
+            title: 'New File Submission',
+            message: `Team "${project.title}" has uploaded a new document for your review: "${newSubmission.title}".`
+        });
     }
 
     res.json({ message: `File Uploaded successfully`, submission: newSubmission });
@@ -498,7 +525,7 @@ const gradeSubmission = asyncHandler(async (req, res) => {
     submission.status = 'Approved'; 
     await project.save();
 
-    // ✅ NOTIFY STUDENTS: Specific submission graded
+    // ✅ NOTIFY STUDENTS: In-app
     const teamMembers = [project.leader, ...(project.members || [])].filter(Boolean);
     const notificationPromises = teamMembers.map(memberId => 
         Notification.create({
@@ -512,122 +539,55 @@ const gradeSubmission = asyncHandler(async (req, res) => {
     );
     await Promise.all(notificationPromises);
 
+    // ✅ 📧 EMAIL TRIGGER: Notify Team about Grade/Feedback
+    await sendProjectEmails(project._id, 'gradeNotification', {
+        projectName: project.title,
+        grade: marks,
+        feedback: feedback || 'No feedback provided.'
+    });
+
     res.json({ message: 'Grade updated successfully', project });
 });
 
-const getSupervisorDashboard = asyncHandler(async (req, res) => {
-    const activeProjects = await Project.find({ supervisor: req.user._id, status: { $in: ['Ongoing', 'Approved', 'Completed', 'Pending Evaluation', 'Revision Requested'] } })
-        .populate('leader members', 'name email rollNo profilePicture')
-        .sort({ updatedAt: -1 });
-    const pendingRequests = await Project.find({ supervisionRequests: { $elemMatch: { teacherId: req.user._id, requestStatus: 'Sent' } } })
-        .populate('leader members', 'name email rollNo profilePicture');
-    res.json({ activeProjects, pendingRequests });
-});
-
 const submitForReview = asyncHandler(async (req, res) => {
-    const projectId = req.params.id;
-    const userId = req.user._id;
-
-    const project = await Project.findById(projectId);
-    if (!project) {
-        res.status(404);
-        throw new Error('Project not found');
-    }
-
-    const isMember = project.members?.some(member => member._id.toString() === userId.toString()) ||
-                    project.leader?._id.toString() === userId.toString();
-    
-    if (!isMember) {
-        res.status(403);
-        throw new Error('Only project members can submit for review');
-    }
-
-    if (project.status === 'Pending Evaluation' || project.grade?.score) {
-        res.status(400);
-        throw new Error('Project is already submitted for review or has been graded');
-    }
+    const project = await Project.findById(req.params.id);
+    if (!project) { res.status(404); throw new Error('Project not found'); }
 
     project.status = 'Pending Evaluation';
     await project.save();
 
-    // ✅ NOTIFY SUPERVISOR: Ready for final review
+    // ✅ 📧 EMAIL TRIGGER: Notify Supervisor of Final Submission
     if (project.supervisor) {
-        await Notification.create({
-            recipient: project.supervisor._id,
-            sender: project.leader._id,
-            title: 'Project Submitted for Review',
-            message: `The group for "${project.title}" has submitted their project for final review!`,
-            type: 'System',
-            link: `/projects/${project._id}`
+        await sendEmail(project.supervisor, 'systemNotification', {
+            title: 'Final Project Submission',
+            message: `The project "${project.title}" has been submitted for final evaluation. Please post the final score and feedback.`
         });
     }
 
-    res.json({
-        message: 'Project submitted for final review successfully',
-        project
-    });
+    res.json({ message: 'Project submitted for final review successfully', project });
 });
 
 const requestRevision = asyncHandler(async (req, res) => {
-    const projectId = req.params.id;
     const { feedback } = req.body;
-    const userId = req.user._id;
-
-    const project = await Project.findById(projectId);
-    if (!project) {
-        res.status(404);
-        throw new Error('Project not found');
-    }
-
-    if (!project.supervisor || project.supervisor._id.toString() !== userId.toString()) {
-        res.status(403);
-        throw new Error('Only the assigned supervisor can request revisions');
-    }
+    const project = await Project.findById(req.params.id);
+    if (!project) { res.status(404); throw new Error('Project not found'); }
 
     project.status = 'Revision Requested';
     await project.save();
 
-    // ✅ NOTIFY STUDENTS: Revision requested
-    const teamMembers = [project.leader, ...(project.members || [])].filter(Boolean);
-    
-    const notificationPromises = teamMembers.map(member => 
-        Notification.create({
-            recipient: member._id,
-            sender: req.user._id,
-            title: 'Revision Requested',
-            message: `Supervisor requested revisions on your final submission: "${feedback}"`,
-            type: 'Feedback',
-            link: `/projects/${project._id}`
-        })
-    );
-
-    await Promise.all(notificationPromises);
-
-    res.json({ 
-        message: 'Revision request sent successfully', 
-        project
+    // ✅ 📧 EMAIL TRIGGER: Notify Students of Revision
+    await sendProjectEmails(project._id, 'systemNotification', {
+        projectName: project.title,
+        message: `Your supervisor has requested revisions on your submission. Feedback: ${feedback}`
     });
+
+    res.json({ message: 'Revision request sent successfully', project });
 });
 
 const gradeProject = asyncHandler(async (req, res) => {
     const { score, feedback } = req.body;
-    const projectId = req.params.id;
-
-    if (!score || score < 0 || score > 100) {
-        res.status(400);
-        throw new Error('Score must be between 0 and 100');
-    }
-
-    if (!feedback || feedback.trim() === '') {
-        res.status(400);
-        throw new Error('Feedback is required');
-    }
-
-    const project = await Project.findById(projectId);
-    if (!project) {
-        res.status(404);
-        throw new Error('Project not found');
-    }
+    const project = await Project.findById(req.params.id);
+    if (!project) { res.status(404); throw new Error('Project not found'); }
 
     project.grade = {
         score: Number(score),
@@ -639,34 +599,43 @@ const gradeProject = asyncHandler(async (req, res) => {
     project.status = 'Completed';
     await project.save();
 
-    // ✅ NOTIFY STUDENTS: Final project graded
-    const teamMembers = [project.leader, ...(project.members || [])].filter(Boolean);
-    const notificationPromises = teamMembers.map(member => 
-      Notification.create({
-        recipient: member._id,
-        sender: req.user._id,
-        title: 'Project Graded',
-        message: `Your project has been officially graded and marked Completed! Check your dashboard.`,
-        type: 'Grade',
-        link: `/projects/${project._id}`
-      })
-    );
-
-    await Promise.all(notificationPromises);
-
-    res.json({
-        message: 'Project graded successfully',
-        project
+    // ✅ 📧 EMAIL TRIGGER: Final Project Grading
+    await sendProjectEmails(project._id, 'gradeNotification', {
+        projectName: project.title,
+        grade: score,
+        feedback: feedback
     });
-});
 
-/**
- * ==========================================
- * EXPORTS
- * ==========================================
- */
+    res.json({ message: 'Project graded successfully', project });
+});
+// @desc    Get dashboard data for a supervisor
+// @route   GET /api/projects/supervisor/dashboard
+// @access  Private/Supervisor
+const getSupervisorDashboard = asyncHandler(async (req, res) => {
+    // 1. Find projects where this user is the assigned supervisor
+    const activeProjects = await Project.find({ 
+        supervisor: req.user._id, 
+        status: { $in: ['Ongoing', 'Approved', 'Completed', 'Pending Evaluation', 'Revision Requested'] } 
+    })
+    .populate('leader members', 'name email rollNo profilePicture')
+    .sort({ updatedAt: -1 });
+
+    // 2. Find pending supervision requests sent to this teacher
+    const pendingRequests = await Project.find({ 
+        supervisionRequests: { 
+            $elemMatch: { 
+                teacherId: req.user._id, 
+                requestStatus: 'Sent' 
+            } 
+        } 
+    })
+    .populate('leader members', 'name email rollNo profilePicture');
+
+    res.json({ activeProjects, pendingRequests });
+});
 module.exports = {
     getProjects,
+
     getProjectById, 
     createProject,
     updateProjectStatus,

@@ -10,6 +10,7 @@ import "react-toastify/dist/ReactToastify.css";
 
 // --- MIDDLEWARE ---
 import ProtectedRoute from "./components/ProtectedRoute"; 
+import ProfileSetupGuard from "./components/shared/ProfileSetupGuard"; 
 
 // --- PAGES ---
 import Login from "./pages/Login";
@@ -54,27 +55,35 @@ function App() {
         {/* --- STUDENT ROUTES --- */}
         <Route path="/dashboard" element={
           <ProtectedRoute role="student">
-            <Dashboard />
+            <ProfileSetupGuard>
+              <Dashboard />
+            </ProfileSetupGuard>
           </ProtectedRoute>
         } />
         
         {/* --- SUPERVISOR ROUTES --- */}
         <Route path="/supervisor-dashboard" element={
           <ProtectedRoute role="supervisor">
-            <SupervisorDashboard />
+            <ProfileSetupGuard>
+              <SupervisorDashboard />
+            </ProfileSetupGuard>
           </ProtectedRoute>
         } />
         
         <Route path="/supervisor/archive" element={
           <ProtectedRoute role="supervisor">
-            <ProjectArchive />
+            <ProfileSetupGuard>
+              <ProjectArchive />
+            </ProfileSetupGuard>
           </ProtectedRoute>
         } />
         
         {/* --- ADMIN ROUTES --- */}
         <Route path="/admin-dashboard" element={
           <ProtectedRoute role="admin">
-            <AdminDashboard />
+            <ProfileSetupGuard>
+              <AdminDashboard />
+            </ProfileSetupGuard>
           </ProtectedRoute>
         } />
 

@@ -35,22 +35,29 @@ const NotificationsTab = () => {
   }, [fetchNotifications]);
 
   // ✅ Handler: Mark single as read & Navigate Safely
-  const handleNotificationClick = async (n) => {
-    // 1. Mark as read in the database
-    if (!n.isRead) {
-      try {
-        await api.put(`/notifications/${n._id}/read`);
-        setNotifications(prev => prev.map(item => item._id === n._id ? { ...item, isRead: true } : item));
-      } catch (error) {
-        toast.error("Status update failed.");
-      }
+ const handleNotificationClick = async (n) => {
+  // 1. Mark as read in the database FIRST
+  if (!n.isRead) {
+    try {
+      // WAIT for this to finish
+      await api.put(`/notifications/${n._id}/read`);
+      
+      // Update local state so the UI reflects the change
+      setNotifications(prev => 
+        prev.map(item => item._id === n._id ? { ...item, isRead: true } : item)
+      );
+    } catch (error) {
+      console.error("Auth/Network error during read update:", error);
+      // If the error is 401, your interceptor is likely what redirects you
+      return; 
     }
-    
-    // 2. 🛑 THE FIX: Only navigate if the link is actually valid and not an empty string/root path!
-    if (n.link && n.link.length > 1 && n.link !== "/") {
-        navigate(n.link);
-    }
-  };
+  }
+  
+  // 2. ONLY Navigate after the API call is settled
+  if (n.link && n.link.length > 1 && n.link !== "/") {
+      navigate(n.link);
+  }
+};
 
   const markAllRead = async () => {
     try {

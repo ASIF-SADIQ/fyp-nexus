@@ -13,17 +13,21 @@ const userRoutes = require('./routes/userRoutes');
 const projectRoutes = require('./routes/projectRoutes'); 
 const aiRoutes = require('./routes/aiRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const profileRoutes = require('./routes/profileRoutes');
+const authCheckRoutes = require('./routes/authCheckRoutes');
+const { protect } = require('./middleware/authMiddleware');
+const { requireProfileSetup, checkProfileSetup } = require('./middleware/profileSetupMiddleware');
 
 const app = express();
 
 // --- 1. SECURITY & MIDDLEWARE ---
 app.use(helmet()); 
 
-// ✅ FINAL FIX: This allows your Vercel site to talk to your Render server without being blocked
+// ✅ FINAL CORS FIX: Added "PATCH" to allow Task Tracker updates from Vercel to Render
 app.use(cors({
   origin: true, 
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"], // PATCH is now active
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
@@ -45,11 +49,13 @@ connectDB();
 
 // --- 3. ROUTES ---
 app.use('/api/users', userRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/ai', aiRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/deadlines', deadlineRoutes); 
+app.use('/api/auth', authCheckRoutes); // Profile check routes (no setup required)
+app.use('/api/projects', protect, requireProfileSetup, projectRoutes);
+app.use('/api/ai', protect, requireProfileSetup, aiRoutes);
+app.use('/api/admin', protect, requireProfileSetup, adminRoutes);
+app.use('/api/notifications', protect, requireProfileSetup, notificationRoutes);
+app.use('/api/deadlines', protect, requireProfileSetup, deadlineRoutes); 
+app.use('/api/profile', protect, profileRoutes); // Profile routes don't require setup (they handle it) 
 
 app.get('/', (req, res) => {
   res.json({ 

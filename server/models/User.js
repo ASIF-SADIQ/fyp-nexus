@@ -103,6 +103,54 @@ const userSchema = mongoose.Schema(
     profilePicture: {
       type: String,
       default: ""              
+    },
+
+    // --- PROFILE SETUP & EMAIL SYSTEM ---
+    profileSetupComplete: {
+      type: Boolean,
+      default: false
+    },
+    personalEmail: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      validate: {
+        validator: function(v) {
+          if (!v) return true; // Optional field
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+        },
+        message: 'Please enter a valid email address'
+      }
+    },
+    phoneNumber: {
+      type: String,
+      trim: true
+    },
+    emailPreferences: {
+      projectUpdates: {
+        type: Boolean,
+        default: true
+      },
+      deadlineReminders: {
+        type: Boolean,
+        default: true
+      },
+      gradeNotifications: {
+        type: Boolean,
+        default: true
+      },
+      taskAssignments: {
+        type: Boolean,
+        default: true
+      },
+      systemNotifications: {
+        type: Boolean,
+        default: false
+      }
+    },
+    lastEmailSent: {
+      type: Date,
+      default: null
     }
   },
   {

@@ -1,25 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify'; // Only imported ONCE here
 import { 
   FaGithub, FaLinkedin, FaGlobe, FaCode, 
   FaUserCircle, FaSave, FaPlus, FaTimes, 
-  FaCamera, FaEnvelope, FaIdCard, FaUniversity 
+  FaCamera, FaEnvelope, FaIdCard, FaUniversity,
+  FaBell, FaCheck, FaExclamationTriangle
 } from 'react-icons/fa';
 import api from '../../services/api';
 
 const ProfileTab = ({ userInfo, onUpdate }) => {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [freshUserInfo, setFreshUserInfo] = useState(userInfo);
   
-  // Initialize state with userInfo props
+  const isSupervisor = userInfo?.role === 'supervisor';
+  
+  // Initialize state with freshUserInfo props
   const [formData, setFormData] = useState({
-    bio: userInfo?.bio || "",
-    githubUrl: userInfo?.githubUrl || "",
-    linkedinUrl: userInfo?.linkedinUrl || "",
-    portfolioUrl: userInfo?.portfolioUrl || "",
-    skills: userInfo?.skills || [],
-    newSkill: ""
+    bio: freshUserInfo?.bio || "",
+    githubUrl: freshUserInfo?.githubUrl || "",
+    linkedinUrl: freshUserInfo?.linkedinUrl || "",
+    portfolioUrl: freshUserInfo?.portfolioUrl || "",
+    skills: freshUserInfo?.skills || [],
+    personalEmail: freshUserInfo?.personalEmail || "",
+    newSkill: "",
+    researchInterests: freshUserInfo?.researchInterests || "",
+    publications: freshUserInfo?.publications || "",
+    projects: freshUserInfo?.projects || ""
   });
+
+  // Fetch fresh user data on mount and when onUpdate is called
+  useEffect(() => {
+    const fetchFreshUserData = async () => {
+      try {
+        const { data } = await api.get('/users/me');
+        setFreshUserInfo(data);
+        setFormData({
+          bio: data?.bio || "",
+          githubUrl: data?.githubUrl || "",
+          linkedinUrl: data?.linkedinUrl || "",
+          portfolioUrl: data?.portfolioUrl || "",
+          skills: data?.skills || [],
+          personalEmail: data?.personalEmail || "",
+          newSkill: ""
+        });
+      } catch (error) {
+        console.error('Failed to fetch fresh user data:', error);
+      }
+    };
+    
+    fetchFreshUserData();
+  }, [onUpdate]);
 
   // --- 1. HANDLE IMAGE UPLOAD ---
   const handleImageUpload = async (e) => {
@@ -50,9 +81,10 @@ const ProfileTab = ({ userInfo, onUpdate }) => {
         githubUrl: formData.githubUrl,
         linkedinUrl: formData.linkedinUrl,
         portfolioUrl: formData.portfolioUrl,
-        skills: formData.skills
+        skills: formData.skills,
+        personalEmail: formData.personalEmail
       });
-      toast.success("Professional Portfolio Synchronized!");
+      toast.success("Profile Updated Successfully!");
       onUpdate(); 
     } catch (err) {
       toast.error("Failed to update profile");
@@ -105,7 +137,7 @@ const ProfileTab = ({ userInfo, onUpdate }) => {
           <h2 className="text-4xl font-black tracking-tight mb-2">{userInfo?.name}</h2>
           <div className="flex flex-wrap justify-center md:justify-start gap-3">
             <span className="bg-white/10 px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest text-primary-400">
-              {userInfo?.rollNo || "ADMIN"}
+              {isSupervisor ? "SUPERVISOR" : (userInfo?.rollNo || "ADMIN")}
             </span>
             <span className="bg-white/10 px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest text-neutral-300">
               {userInfo?.department}
@@ -114,6 +146,45 @@ const ProfileTab = ({ userInfo, onUpdate }) => {
         </div>
 
         <div className="absolute top-[-20%] right-[-10%] w-80 h-80 bg-primary-500/10 rounded-full blur-[100px]" />
+      </div>
+
+      {/* --- EMAIL NOTIFICATION STATUS --- */}
+      <div className={`p-8 rounded-3xl border-2 ${
+        freshUserInfo?.personalEmail 
+          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' 
+          : 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200'
+      }`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
+              freshUserInfo?.personalEmail ? 'bg-green-500' : 'bg-amber-500'
+            }`}>
+              <FaBell className="text-white text-xl" />
+            </div>
+            <div>
+              <h3 className="font-bold text-xl text-gray-900 mb-1">
+                {freshUserInfo?.personalEmail ? 'Email Notifications Active' : 'Setup Email Notifications'}
+              </h3>
+              <p className="text-gray-600">
+                {freshUserInfo?.personalEmail 
+                  ? `Receiving project updates at ${freshUserInfo?.personalEmail}`
+                  : 'Add personal email to receive project notifications and updates'
+                }
+              </p>
+            </div>
+          </div>
+          {freshUserInfo?.personalEmail ? (
+            <div className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-full">
+              <FaCheck size={12} />
+              <span className="text-sm font-semibold">Active</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-700 rounded-full">
+              <FaExclamationTriangle size={12} />
+              <span className="text-sm font-semibold">Required</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -126,7 +197,7 @@ const ProfileTab = ({ userInfo, onUpdate }) => {
             <textarea 
               value={formData.bio}
               onChange={(e) => setFormData({...formData, bio: e.target.value})}
-              placeholder="Describe your technical interests, project contributions, and career goals..."
+              placeholder={isSupervisor ? "Describe your research interests, teaching philosophy, and academic background..." : "Describe your technical interests, project contributions, and career goals..."}
               className="w-full h-44 bg-neutral-50 rounded-2xl p-6 text-neutral-700 font-medium focus:ring-2 focus:ring-primary-500 outline-none border-none resize-none transition-all"
             />
           </section>
@@ -150,6 +221,14 @@ const ProfileTab = ({ userInfo, onUpdate }) => {
                  icon={<FaEnvelope />} label="Contact Email" value={userInfo?.email} 
                  readOnly={true}
                />
+               <InputField 
+                 icon={<FaBell />} label="Personal Email (Notifications)" value={formData.personalEmail} 
+                 onChange={(v) => setFormData({...formData, personalEmail: v})} 
+                 placeholder="your-email@gmail.com"
+               />
+               <div className="text-xs text-gray-500 italic">
+                Personal email receives project notifications and updates
+               </div>
             </div>
           </section>
         </div>
@@ -159,7 +238,9 @@ const ProfileTab = ({ userInfo, onUpdate }) => {
           
           <section className="bg-white p-10 rounded-3xl shadow-sm border border-neutral-100">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xs font-black text-neutral-400 uppercase tracking-widest">Technical Stack</h3>
+              <h3 className="text-xs font-black text-neutral-400 uppercase tracking-widest">
+                {isSupervisor ? "Expertise & Skills" : "Technical Stack"}
+              </h3>
               <FaCode className="text-primary-600" />
             </div>
             

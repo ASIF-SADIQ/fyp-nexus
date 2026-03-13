@@ -3,65 +3,84 @@ const Notification = require('../models/Notification');
 
 // @desc    Get all notifications for logged in user
 // @route   GET /api/notifications/my
+// @access  Private
 const getMyNotifications = asyncHandler(async (req, res) => {
-  // 🛠️ DEBUG: This will print in your backend terminal so you can verify the user ID
-  console.log("-> Fetching notifications for User ID:", req.user?._id);
+    // 🛠️ DEBUG: Verify User ID in terminal
+    console.log("🔍 NOTIFICATION FETCH: User ID ->", req.user?._id);
 
-  // Safety check: Ensure the auth middleware is actually attaching the user
-  if (!req.user || !req.user._id) {
-    res.status(401);
-    throw new Error('Not authorized, user ID missing from request');
-  }
+    if (!req.user || !req.user._id) {
+        res.status(401);
+        throw new Error('Not authorized, user ID missing');
+    }
 
-  // ✅ FIX: Changed 'receiver' to 'recipient' to match the database model
-  // 🌟 ADDED: .populate() to automatically fetch the Supervisor's name and details
-  const notifications = await Notification.find({ recipient: req.user._id })
-    .populate('sender', 'name email role') 
-    .sort({ createdAt: -1 }) // Show newest first
-    .limit(50);
-  
-  // 🛠️ DEBUG: This will tell you exactly how many records MongoDB found
-  console.log(`-> MongoDB found ${notifications.length} notifications for this user.`);
-  
-  res.status(200).json(notifications);
+    // ✅ RECIPIENT: Match the field name in your Notification Schema
+    // ✅ POPULATE: Get Sender's name and role so the UI looks professional
+    const notifications = await Notification.find({ recipient: req.user._id })
+        .populate('sender', 'name role profilePicture') 
+        .sort({ createdAt: -1 }) // Newest on top
+        .limit(30); // Keep it fast by limiting to last 30
+    
+    console.log(`✅ NOTIFICATION SUCCESS: Found ${notifications.length} records.`);
+    
+    res.status(200).json(notifications);
 });
 
 // @desc    Mark a single notification as read
 // @route   PUT /api/notifications/:id/read
+// @access  Private
 const markAsRead = asyncHandler(async (req, res) => {
-  const notification = await Notification.findById(req.params.id);
+    const notification = await Notification.findById(req.params.id);
 
-  if (!notification) {
-    res.status(404);
-    throw new Error('Notification not found');
-  }
+    if (!notification) {
+        res.status(404);
+        throw new Error('Notification not found');
+    }
 
-  // Ensure only the recipient can mark it as read
-  if (notification.recipient.toString() !== req.user._id.toString()) {
-    res.status(401);
-    throw new Error('Not authorized');
-  }
+    // Security check: Only the owner can mark it read
+    if (notification.recipient.toString() !== req.user._id.toString()) {
+        res.status(401);
+        throw new Error('Unauthorized access to this notification');
+    }
 
-  notification.isRead = true;
-  await notification.save();
-  
-  res.json({ message: 'Marked as read', notification });
+    notification.isRead = true;
+    await notification.save();
+    
+    res.json({ success: true, notification });
 });
 
 // @desc    Mark ALL notifications as read
 // @route   PUT /api/notifications/read-all
+// @access  Private
 const markAllAsRead = asyncHandler(async (req, res) => {
-  // ✅ FIX: Changed 'receiver' to 'recipient'
-  const updated = await Notification.updateMany(
-    { recipient: req.user._id, isRead: false },
-    { $set: { isRead: true } }
-  );
-  
-  res.json({ message: `All notifications marked as read. Updated ${updated.modifiedCount} records.` });
+    // ✅ UpdateMany is much faster for "Clear All" features
+    const result = await Notification.updateMany(
+        { recipient: req.user._id, isRead: false },
+        { $set: { isRead: true } }
+    );
+    
+    res.json({ 
+        message: 'Notifications cleared', 
+        updatedCount: result.modifiedCount 
+    });
+});
+
+// @desc    Delete a notification (Optional: for cleaner UI)
+// @route   DELETE /api/notifications/:id
+const deleteNotification = asyncHandler(async (req, res) => {
+    const notification = await Notification.findById(req.params.id);
+    
+    if (notification && notification.recipient.toString() === req.user._id.toString()) {
+        await notification.deleteOne();
+        res.json({ message: 'Notification removed' });
+    } else {
+        res.status(404);
+        throw new Error('Notification not found or unauthorized');
+    }
 });
 
 module.exports = { 
-  getMyNotifications,
-  markAsRead,
-  markAllAsRead
+    getMyNotifications,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification
 };

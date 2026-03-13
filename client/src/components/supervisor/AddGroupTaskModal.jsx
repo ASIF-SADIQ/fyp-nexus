@@ -30,8 +30,17 @@ const AddGroupTaskModal = ({ isOpen, onClose, project, onRefresh }) => {
         type: 'Task'
       };
 
-      await api.post('/deadlines', payload);
+      const response = await api.post('/deadlines', payload);
       toast.success(`Task successfully assigned to ${project.title}`); // ✅ Replaced alert
+      
+      // Check if email notification was sent
+      if (response.data?.emailNotificationSent) {
+        toast.success('📧 Email notification sent to assigned user');
+      } else {
+        // Show notification even if email status is unknown
+        toast.success('📧 Task assignment notification created');
+      }
+      
       onRefresh();
       onClose();
       // Reset form

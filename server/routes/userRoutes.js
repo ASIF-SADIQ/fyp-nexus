@@ -110,6 +110,15 @@ router.put('/profile', protect, asyncHandler(async (req, res) => {
     if (req.body.linkedinUrl !== undefined) user.linkedinUrl = req.body.linkedinUrl;
     if (req.body.portfolioUrl !== undefined) user.portfolioUrl = req.body.portfolioUrl;
     if (req.body.profilePicture !== undefined) user.profilePicture = req.body.profilePicture;
+    
+    // Handle personal email for notifications
+    if (req.body.personalEmail !== undefined) {
+        user.personalEmail = req.body.personalEmail;
+        // Mark profile setup as complete if personal email is provided
+        if (req.body.personalEmail && req.body.personalEmail.trim() !== '') {
+            user.profileSetupComplete = true;
+        }
+    }
 
     if (req.body.skills) {
         user.skills = Array.isArray(req.body.skills) ? req.body.skills : user.skills;
@@ -139,7 +148,9 @@ router.put('/profile', protect, asyncHandler(async (req, res) => {
             linkedinUrl: updatedUser.linkedinUrl,
             portfolioUrl: updatedUser.portfolioUrl,
             profilePicture: updatedUser.profilePicture,
-            expertise: updatedUser.expertise
+            expertise: updatedUser.expertise,
+            personalEmail: updatedUser.personalEmail,
+            profileSetupComplete: updatedUser.profileSetupComplete
         });
     } catch (error) {
         console.error("CRITICAL SAVE ERROR:", error.message);

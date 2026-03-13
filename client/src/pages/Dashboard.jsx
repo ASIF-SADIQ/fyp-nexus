@@ -23,4 +23,4 @@ const Dashboard = () => {
   return <div className="p-10 text-center animate-pulse">Redirecting...</div>;
 };
 
-export default Dashboard;
+export default Dashboard; 

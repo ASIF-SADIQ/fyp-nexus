@@ -62,4 +62,36 @@ export const requestProjectRevision = (projectId, data) =>
 export const submitProjectGrade = (projectId, gradeData) =>
   api.put(`/projects/${projectId}/grade-project`, gradeData);
 
+// ==========================================
+// PROFILE MANAGEMENT APIs
+// ==========================================
+
+// Check if user needs profile setup
+export const checkProfileSetup = () =>
+  api.get('/auth/check-profile');
+
+// Get profile status
+export const getProfileStatus = () =>
+  api.get('/auth/profile-status');
+
+// Get profile setup status
+export const getProfileSetupStatus = () =>
+  api.get('/profile/setup-status');
+
+// Complete profile setup
+export const completeProfileSetup = (profileData) =>
+  api.post('/profile/setup', profileData);
+
+// Get user profile
+export const getUserProfile = () =>
+  api.get('/profile');
+
+// Update user profile
+export const updateUserProfile = (profileData) =>
+  api.put('/profile', profileData);
+
+// Update email preferences
+export const updateEmailPreferences = (preferences) =>
+  api.put('/profile/email-preferences', preferences);
+
 export default api;

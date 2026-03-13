@@ -1,12 +1,13 @@
 import React, { useState } from "react";
-import toast from 'react-hot-toast'; // ✅ Added for premium alerts
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   FaFilePdf, FaUsers, FaGithub, FaLinkedin, 
-  FaArrowRight, FaTimes, FaCheckCircle, FaExclamationCircle, FaSpinner 
+  FaArrowRight, FaTimes, FaCheckCircle, FaExclamationCircle, FaSpinner,
+  FaCalendarAlt, FaRocket, FaStar, FaTasks, FaExternalLinkAlt
 } from "react-icons/fa";
 import api from "../../services/api";
-import ActionConfirmModal from '../shared/ActionConfirmModal'; // ✅ Implemented custom modal
+import ActionConfirmModal from '../shared/ActionConfirmModal';
 
 const ActiveProjectCard = ({ project, refreshDashboard }) => {
   const [showDetails, setShowDetails] = useState(false);
@@ -29,7 +30,7 @@ const ActiveProjectCard = ({ project, refreshDashboard }) => {
       title: "Confirm Project Completion",
       message: "Are you sure you want to mark this project as completed? This action will archive the project and release one slot in your active mentorship workload.",
       confirmText: "Archive Project",
-      type: "success", // Gives the modal a green success theme
+      type: "success",
       onConfirm: executeCompletion
     });
   };
@@ -42,14 +43,36 @@ const ActiveProjectCard = ({ project, refreshDashboard }) => {
       setUpdating(true);
       await api.put(`/projects/${project._id}/status`, { status: "Completed" });
       
-      toast.success("Project archived. Workload capacity increased."); // ✅ Replaced alert()
-      setShowDetails(false); // Close the detail modal
+      toast.success("Project archived. Workload capacity increased.");
+      setShowDetails(false);
       
-      if (refreshDashboard) refreshDashboard(); // Refresh the parent dashboard lists
+      if (refreshDashboard) refreshDashboard();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to update project status."); // ✅ Replaced alert()
+      toast.error(error.response?.data?.message || "Failed to update project status.");
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Ongoing': return 'from-blue-500 to-blue-600';
+      case 'Completed': return 'from-emerald-500 to-emerald-600';
+      case 'Pending Evaluation': return 'from-amber-500 to-amber-600';
+      case 'Under Review': return 'from-indigo-500 to-indigo-600';
+      case 'Revision Requested': return 'from-rose-500 to-rose-600';
+      default: return 'from-slate-500 to-slate-600';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'Ongoing': return <FaRocket />;
+      case 'Completed': return <FaCheckCircle />;
+      case 'Pending Evaluation': return <FaCalendarAlt />;
+      case 'Under Review': return <FaSpinner />;
+      case 'Revision Requested': return <FaExclamationCircle />;
+      default: return <FaTasks />;
     }
   };
 

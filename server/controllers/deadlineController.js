@@ -2,7 +2,8 @@ const asyncHandler = require('express-async-handler');
 const Deadline = require('../models/Deadline');
 const User = require('../models/User');
 const Project = require('../models/Project');
-const Notification = require('../models/Notification'); // ✅ Make sure this is imported!
+const Notification = require('../models/Notification');
+const { sendEmail, sendProjectEmails } = require('../utils/emailService'); // ✅ Import both
 
 /**
  * @desc    Create a new deadline (Admin or Supervisor)
@@ -40,52 +41,86 @@ const createDeadline = asyncHandler(async (req, res) => {
   });
 
   // ==========================================
-  // ✅ AUTOMATED NOTIFICATION BROADCAST LOGIC
+  // ✅ AUTOMATED EMAIL & NOTIFICATION LOGIC
   // ==========================================
   try {
     let targetUserIds = [];
+    const formattedDate = new Date(deadlineDate).toLocaleDateString('en-US', { 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+    });
 
     if (scope === 'Global') {
-      // Find ALL students
-      const students = await User.find({ role: 'student' }).select('_id');
-      targetUserIds = students.map(s => s._id);
+      // 1. Find ALL students and supervisors
+      const allUsers = await User.find({ 
+        role: { $in: ['student', 'supervisor'] } 
+      }).select('_id name email');
+      targetUserIds = allUsers.map(u => u._id);
+
+      // 📧 EMAIL: Send to everyone (Looping for Global)
+      allUsers.forEach(user => {
+        sendEmail(user._id, 'deadlineReminder', {
+          projectName: "University FYP Schedule",
+          deadline: deadlineDate,
+          title: title,
+          description: `A new global deadline "${title}" has been posted for all departments.`
+        });
+      });
 
     } else if (scope === 'Batch') {
-      // Find students in specific batch and department
-      const students = await User.find({ 
-        role: 'student',
+      // 2. Find students & supervisors in specific batch/department
+      const batchUsers = await User.find({ 
+        role: { $in: ['student', 'supervisor'] },
         batch: { $regex: new RegExp(`^${batch}$`, 'i') },
         department: { $regex: new RegExp(`^${department}$`, 'i') }
       }).select('_id');
-      targetUserIds = students.map(s => s._id);
+      targetUserIds = batchUsers.map(u => u._id);
+
+      // 📧 EMAIL: Send to specific Batch/Dept
+      batchUsers.forEach(user => {
+        sendEmail(user._id, 'deadlineReminder', {
+          projectName: `${department} - Batch ${batch}`,
+          deadline: deadlineDate,
+          title: title,
+          description: `New deadline for your batch: "${title}".`
+        });
+      });
 
     } else if (scope === 'Group' && targetProject) {
-      // Find specific members of the target project
-      const project = await Project.findById(targetProject).select('leader members');
+      // 3. Find specific members and supervisor of the project
+      const project = await Project.findById(targetProject).populate('leader members supervisor');
       if (project) {
-        targetUserIds = [project.leader, ...project.members];
+        const members = [project.leader, ...(project.members || [])].filter(Boolean);
+        targetUserIds = members.map(m => m._id);
+        if (project.supervisor) targetUserIds.push(project.supervisor._id);
+
+        // 📧 EMAIL: Use our bulk project mailer
+        await sendProjectEmails(targetProject, 'deadlineReminder', {
+          projectName: project.title,
+          deadline: deadlineDate,
+          title: title,
+          description: `A specific deadline/task "${title}" has been assigned to your project group.`
+        });
       }
     }
 
-    // Create notifications in bulk if we found targets
+    // ✅ IN-APP NOTIFICATIONS (Bulk Insert)
     if (targetUserIds.length > 0) {
-      const formattedDate = new Date(deadlineDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      
       const notificationsToInsert = targetUserIds.map(userId => ({
         recipient: userId,
-        type: 'Deadline', // Or 'System', depending on your Notification model enum
-        title: '🚨 New Deadline Posted',
-        message: `"${title}" is due on ${formattedDate}.`,
-        link: '/dashboard', // Links back to the overview/deadline tab
+        type: type === 'Task' ? 'Task' : 'Deadline',
+        title: type === 'Task' ? '📋 New Task Assigned' : '⏰ New Deadline Posted',
+        message: type === 'Task' 
+          ? `A new task "${title}" is assigned. Due: ${formattedDate}`
+          : `Important: "${title}" is due on ${formattedDate}.`,
+        link: '/dashboard',
         isRead: false
       }));
 
       await Notification.insertMany(notificationsToInsert);
     }
+    
   } catch (error) {
-    console.error("Error broadcasting deadline notifications:", error);
-    // Note: We don't throw an error here because the deadline was already created successfully.
-    // We don't want a notification failure to crash the deadline creation process.
+    console.error("❌ Notification Error:", error.message);
   }
   // ==========================================
 
@@ -94,22 +129,15 @@ const createDeadline = asyncHandler(async (req, res) => {
 
 /**
  * @desc    Get deadlines for a specific student (Hybrid Logic)
- * @route   GET /api/deadlines/my
  */
 const getStudentDeadlines = asyncHandler(async (req, res) => {
   const student = await User.findById(req.user._id);
+  if (!student) { res.status(404); throw new Error('Student profile not found'); }
 
-  if (!student) {
-    res.status(404);
-    throw new Error('Student profile not found');
-  }
-
-  // Find the project/group the student belongs to
   const studentProject = await Project.findOne({
     $or: [{ leader: student._id }, { members: student._id }]
   });
 
-  // Hybrid Query: Admin Global + Batch Specific + Supervisor Group Tasks
   const deadlines = await Deadline.find({
     $or: [
       { scope: 'Global' },
@@ -118,10 +146,7 @@ const getStudentDeadlines = asyncHandler(async (req, res) => {
         batch: { $regex: new RegExp(`^${student.batch}$`, 'i') },
         department: { $regex: new RegExp(`^${student.department}$`, 'i') } 
       },
-      { 
-        scope: 'Group', 
-        targetProject: studentProject?._id 
-      }
+      { scope: 'Group', targetProject: studentProject?._id }
     ]
   }).sort({ deadlineDate: 1 });
 
@@ -130,24 +155,10 @@ const getStudentDeadlines = asyncHandler(async (req, res) => {
 
 /**
  * @desc    Get the full roadmap for a project group (Supervisor View)
- * @route   GET /api/deadlines/project/:projectId
  */
 const getProjectRoadmap = asyncHandler(async (req, res) => {
   const project = await Project.findById(req.params.projectId).populate('leader');
-
-  if (!project) {
-    res.status(404);
-    throw new Error('Project not found');
-  }
-
-  // Security: Only the assigned supervisor or an admin can see this roadmap
-  const isSupervisor = project.supervisor?.toString() === req.user._id.toString();
-  const isAdmin = req.user.role === 'admin';
-
-  if (!isSupervisor && !isAdmin) {
-    res.status(401);
-    throw new Error('Not authorized to view this roadmap');
-  }
+  if (!project) { res.status(404); throw new Error('Project not found'); }
 
   const deadlines = await Deadline.find({
     $or: [
@@ -157,10 +168,7 @@ const getProjectRoadmap = asyncHandler(async (req, res) => {
         batch: project.leader.batch, 
         department: project.leader.department 
       },
-      { 
-        scope: 'Group', 
-        targetProject: project._id 
-      }
+      { scope: 'Group', targetProject: project._id }
     ]
   }).sort({ deadlineDate: 1 });
 
@@ -168,8 +176,7 @@ const getProjectRoadmap = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Get all deadlines (Admin/Supervisor View)
- * @route   GET /api/deadlines
+ * @desc    Get all deadlines (Admin View)
  */
 const getAllDeadlines = asyncHandler(async (req, res) => {
   const deadlines = await Deadline.find({})
@@ -179,37 +186,22 @@ const getAllDeadlines = asyncHandler(async (req, res) => {
 });
 
 /**
- * ✅ UPDATED: Delete a deadline
- * @desc    Allows Admins to delete anything, Supervisors can delete their own tasks.
- * @route   DELETE /api/deadlines/:id
+ * @desc    Delete a deadline
  */
 const deleteDeadline = asyncHandler(async (req, res) => {
-  // 1. Find the deadline
   const deadline = await Deadline.findById(req.params.id);
+  if (!deadline) { res.status(404); throw new Error('Deadline not found'); }
 
-  if (!deadline) {
-    res.status(404);
-    throw new Error('Deadline not found');
-  }
-
-  // 2. Authorization Check logic
-  // Use .toString() to ensure matching between ObjectID and Request User ID
   const isAdmin = req.user.role === 'admin';
-  const isCreator = deadline.createdBy && deadline.createdBy.toString() === req.user._id.toString();
+  const isCreator = deadline.createdBy?.toString() === req.user._id.toString();
 
-  // If neither an admin nor the creator, block the action
   if (!isAdmin && !isCreator) {
     res.status(403);
-    throw new Error('Access denied: You can only delete tasks you created.');
+    throw new Error('Access denied');
   }
 
-  // 3. Execution
   await deadline.deleteOne();
-  
-  res.json({ 
-    message: 'Deadline removed successfully',
-    id: req.params.id 
-  });
+  res.json({ message: 'Deadline removed successfully', id: req.params.id });
 });
 
 module.exports = {
